@@ -1,25 +1,35 @@
 import cv2
 import time
-from ultralytics import YOLO
-
-model = YOLO("yolo26n.pt")
-
-camera = cv2.VideoCapture(0)
-if not camera.isOpened():
-    print("Couldn't open camera")
-    exit()
+from vision.camera import open_camera
+from vision.detector import ObjectDetector
+from vision.spatial import get_horizontal_position
+camera = open_camera()
+detector = ObjectDetector()
 
 previous_time = time.time()
 
 while True:
     success, frame = camera.read()
-
     if not success:
-        print("Couldn't read frame")
         break
+    result = detector.detect(frame)
+    detections = detector.get_detections(result)
+    frame_height, frame_width, channels = frame.shape
+    
+    for detection in detections:
+        position = get_horizontal_position(
+                detection["box"],
+                    frame_width
+                )
+        print(
+                    detection["class_name"],
+                    f"{detection['confidence']:.2f}",
+                    position
+                )
 
-    results = model(frame, verbose=False) #Model Inference put verbose false so it dont detstory the terminal with output 
-    annotated_frame = results[0].plot()
+        annotated_frame = result.plot()
+    else:
+        annotated_frame = frame
     current_time = time.time()
 
     fps = 1/(current_time - previous_time) # how long one loop took 
@@ -34,7 +44,7 @@ while True:
         (255, 255, 255),
         2
     )
-    cv2.imshow("YOLO Lice Detection", annotated_frame)
+    cv2.imshow("Visual Assistant", annotated_frame)
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
