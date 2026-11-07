@@ -1,11 +1,14 @@
 from ultralytics import YOLO
 
 class ObjectDetector:
-    def __init__(self, model_path="yolo26n.pt"):
-        self.model =YOLO(model_path)
+    def __init__(self, model_path="yolo26n.pt", conf = 0.5):
+        self.model = YOLO(model_path)
+        self.conf = conf
+        
     def detect(self, frame):
-        results = self.model(frame, verbose=False)
+        results = self.model(frame, verbose=False, conf=self.conf)
         return results[0]
+    
     def get_detections(self, result):
         detections = []
         for box in result.boxes:
