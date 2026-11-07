@@ -27,9 +27,7 @@ while True:
                     position
                 )
 
-        annotated_frame = result.plot()
-    else:
-        annotated_frame = frame
+    annotated_frame = result.plot() if detections else frame
     current_time = time.time()
 
     fps = 1/(current_time - previous_time) # how long one loop took 
