@@ -1,5 +1,5 @@
 import cv2
-from camera import open_camera
+from vision.camera import open_camera
 camera = open_camera()
 while True:
     success, frame = camera.read()
@@ -11,7 +11,7 @@ while True:
     #Press C to capture
 
     if key == ord("c"):
-        cv2.imwrite("ocr_test.jpg", frame)
+        cv2.imwrite("vision/ocr_test.jpg", frame)
         print("image captured!")
         break
 
