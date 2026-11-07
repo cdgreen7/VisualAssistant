@@ -30,7 +30,7 @@ while True:
     annotated_frame = result.plot() if detections else frame
     current_time = time.time()
 
-    fps = 1/(current_time - previous_time) # how long one loop took 
+    fps = 1/ max(current_time - previous_time, 1e-6) # prevent division by zero
     previous_time = current_time
 
     cv2.putText(
