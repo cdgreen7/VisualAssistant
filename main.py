@@ -27,7 +27,12 @@ while True:
                     position
                 )
 
+
     annotated_frame = result.plot() if detections else frame
+    if detections:
+        annotated_frame = result.plot()
+    else:
+        annotated_frame = frame
     current_time = time.time()
 
     fps = 1/ max(current_time - previous_time, 1e-6) # prevent division by zero

@@ -1,0 +1,1216 @@
+{
+ "meta": {
+  "source": "https://download.open.fda.gov/drug/ndc/drug-ndc-0001-of-0001.json.zip",
+  "last_updated": "2026-10-30",
+  "note": "Unmodified openFDA NDC records copied from the bulk export, chosen for tests."
+ },
+ "results": [
+  {
+   "product_ndc": "0573-0150",
+   "generic_name": "ibuprofen",
+   "labeler_name": "Haleon US Holdings LLC",
+   "brand_name": "ADVIL",
+   "active_ingredients": [
+    {
+     "name": "IBUPROFEN",
+     "strength": "200 mg/1"
+    }
+   ],
+   "finished": true,
+   "packaging": [
+    {
+     "package_ndc": "0573-0150-20",
+     "description": "1 BOTTLE in 1 CARTON (0573-0150-20)  / 24 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "19840518",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0150-30",
+     "description": "1 BOTTLE in 1 CARTON (0573-0150-30)  / 50 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "19840518",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0150-31",
+     "description": "1 BOTTLE in 1 CARTON (0573-0150-31)  / 75 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "19840518",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0150-32",
+     "description": "1 BOTTLE in 1 CARTON (0573-0150-32)  / 60 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "19840518",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0150-40",
+     "description": "1 BOTTLE in 1 CARTON (0573-0150-40)  / 100 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "19840518",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0150-41",
+     "description": "1 BOTTLE in 1 CARTON (0573-0150-41)  / 125 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "19840518",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0150-42",
+     "description": "1 BOTTLE in 1 CARTON (0573-0150-42)  / 150 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "19840518",
+     "sample": false
+    }
+   ],
+   "listing_expiration_date": "20271231",
+   "openfda": {
+    "manufacturer_name": [
+     "Haleon US Holdings LLC"
+    ],
+    "rxcui": [
+     "153008",
+     "310965"
+    ],
+    "spl_set_id": [
+     "1a665e64-9f30-be37-4a83-38789f1f1e89"
+    ],
+    "is_original_packager": [
+     true
+    ],
+    "upc": [
+     "0305730150200"
+    ],
+    "nui": [
+     "N0000000160",
+     "M0001335",
+     "N0000175722"
+    ],
+    "pharm_class_moa": [
+     "Cyclooxygenase Inhibitors [MoA]"
+    ],
+    "pharm_class_cs": [
+     "Anti-Inflammatory Agents, Non-Steroidal [CS]"
+    ],
+    "pharm_class_epc": [
+     "Nonsteroidal Anti-inflammatory Drug [EPC]"
+    ],
+    "unii": [
+     "WK2XYI10QM"
+    ]
+   },
+   "marketing_category": "NDA",
+   "dosage_form": "TABLET, COATED",
+   "spl_id": "4cd840a6-9554-de58-e063-6394a90ab543",
+   "product_type": "HUMAN OTC DRUG",
+   "route": [
+    "ORAL"
+   ],
+   "marketing_start_date": "19840518",
+   "product_id": "0573-0150_4cd840a6-9554-de58-e063-6394a90ab543",
+   "application_number": "NDA018989",
+   "brand_name_base": "ADVIL",
+   "pharm_class": [
+    "Anti-Inflammatory Agents",
+    "Non-Steroidal [CS]",
+    "Cyclooxygenase Inhibitors [MoA]",
+    "Nonsteroidal Anti-inflammatory Drug [EPC]"
+   ]
+  },
+  {
+   "product_ndc": "0573-0161",
+   "generic_name": "ibuprofen",
+   "labeler_name": "Haleon US Holdings LLC",
+   "brand_name": "ADVIL",
+   "active_ingredients": [
+    {
+     "name": "IBUPROFEN",
+     "strength": "200 mg/1"
+    }
+   ],
+   "finished": true,
+   "packaging": [
+    {
+     "package_ndc": "0573-0161-35",
+     "description": "1 BOTTLE in 1 CARTON (0573-0161-35)  / 150 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "19840518",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0161-51",
+     "description": "1 BOTTLE in 1 CARTON (0573-0161-51)  / 200 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "19840518",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0161-65",
+     "description": "65 TABLET, COATED in 1 BOTTLE (0573-0161-65)",
+     "marketing_start_date": "20170501",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0161-85",
+     "description": "1 BOTTLE in 1 CARTON (0573-0161-85)  / 225 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "19840518",
+     "sample": false
+    }
+   ],
+   "listing_expiration_date": "20271231",
+   "openfda": {
+    "manufacturer_name": [
+     "Haleon US Holdings LLC"
+    ],
+    "rxcui": [
+     "153008",
+     "310965"
+    ],
+    "spl_set_id": [
+     "1a665e64-9f30-be37-4a83-38789f1f1e89"
+    ],
+    "is_original_packager": [
+     true
+    ],
+    "upc": [
+     "0305730150200"
+    ],
+    "nui": [
+     "N0000000160",
+     "M0001335",
+     "N0000175722"
+    ],
+    "pharm_class_moa": [
+     "Cyclooxygenase Inhibitors [MoA]"
+    ],
+    "pharm_class_cs": [
+     "Anti-Inflammatory Agents, Non-Steroidal [CS]"
+    ],
+    "pharm_class_epc": [
+     "Nonsteroidal Anti-inflammatory Drug [EPC]"
+    ],
+    "unii": [
+     "WK2XYI10QM"
+    ]
+   },
+   "marketing_category": "NDA",
+   "dosage_form": "TABLET, COATED",
+   "spl_id": "4cd840a6-9554-de58-e063-6394a90ab543",
+   "product_type": "HUMAN OTC DRUG",
+   "route": [
+    "ORAL"
+   ],
+   "marketing_start_date": "19840518",
+   "product_id": "0573-0161_4cd840a6-9554-de58-e063-6394a90ab543",
+   "application_number": "NDA018989",
+   "brand_name_base": "ADVIL",
+   "pharm_class": [
+    "Anti-Inflammatory Agents",
+    "Non-Steroidal [CS]",
+    "Cyclooxygenase Inhibitors [MoA]",
+    "Nonsteroidal Anti-inflammatory Drug [EPC]"
+   ]
+  },
+  {
+   "product_ndc": "0573-0164",
+   "generic_name": "diphenhydramine citrate and ibuprofen",
+   "labeler_name": "Haleon US Holdings LLC",
+   "brand_name": "ADVIL PM",
+   "active_ingredients": [
+    {
+     "name": "DIPHENHYDRAMINE CITRATE",
+     "strength": "38 mg/1"
+    },
+    {
+     "name": "IBUPROFEN",
+     "strength": "200 mg/1"
+    }
+   ],
+   "finished": true,
+   "packaging": [
+    {
+     "package_ndc": "0573-0164-04",
+     "description": "4 TABLET, COATED in 1 POUCH (0573-0164-04)",
+     "marketing_start_date": "20051221",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-05",
+     "description": "2 BOTTLE in 1 CARTON (0573-0164-05)  / 2 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "20051221",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-08",
+     "description": "1 VIAL in 1 PACKAGE (0573-0164-08)  / 8 TABLET, COATED in 1 VIAL",
+     "marketing_start_date": "20170317",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-09",
+     "description": "8 TABLET, COATED in 1 VIAL (0573-0164-09)",
+     "marketing_start_date": "20170317",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-12",
+     "description": "6 POUCH in 1 CARTON (0573-0164-12)  / 2 TABLET, COATED in 1 POUCH",
+     "marketing_start_date": "20051221",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-14",
+     "description": "2 POUCH in 1 CARTON (0573-0164-14)  / 2 TABLET, COATED in 1 POUCH",
+     "marketing_start_date": "20051221",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-20",
+     "description": "1 BOTTLE in 1 CARTON (0573-0164-20)  / 20 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "20051221",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-21",
+     "description": "1 BOTTLE in 1 CARTON (0573-0164-21)  / 30 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "20051221",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-30",
+     "description": "1 BOTTLE in 1 CARTON (0573-0164-30)  / 40 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "20051221",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-32",
+     "description": "1 BOTTLE in 1 CARTON (0573-0164-32)  / 50 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "20051221",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-33",
+     "description": "1 BOTTLE in 1 CARTON (0573-0164-33)  / 50 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "20051221",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-40",
+     "description": "1 BOTTLE in 1 CARTON (0573-0164-40)  / 80 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "20051221",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-41",
+     "description": "1 BOTTLE in 1 CARTON (0573-0164-41)  / 100 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "20051221",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-43",
+     "description": "1 BOTTLE in 1 CARTON (0573-0164-43)  / 120 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "20051221",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-44",
+     "description": "1 BOTTLE in 1 CARTON (0573-0164-44)  / 140 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "20051221",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-45",
+     "description": "1 BOTTLE in 1 CARTON (0573-0164-45)  / 180 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "20051221",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-46",
+     "description": "1 BOTTLE in 1 CARTON (0573-0164-46)  / 180 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "20051221",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-49",
+     "description": "1 BOTTLE in 1 CARTON (0573-0164-49)  / 200 TABLET, COATED in 1 BOTTLE",
+     "marketing_start_date": "20051221",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-55",
+     "description": "50 POUCH in 1 TRAY (0573-0164-55)  / 2 TABLET, COATED in 1 POUCH",
+     "marketing_start_date": "20051221",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-65",
+     "description": "120 TABLET, COATED in 1 BOTTLE (0573-0164-65)",
+     "marketing_start_date": "20160930",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0164-91",
+     "description": "3000 POUCH in 1 BOX (0573-0164-91)  / 2 TABLET, COATED in 1 POUCH",
+     "marketing_start_date": "20051221",
+     "sample": false
+    }
+   ],
+   "listing_expiration_date": "20261231",
+   "openfda": {
+    "manufacturer_name": [
+     "Haleon US Holdings LLC"
+    ],
+    "rxcui": [
+     "895664"
+    ],
+    "spl_set_id": [
+     "658fc201-47c9-6a6d-8af9-6208298d43b4"
+    ],
+    "is_original_packager": [
+     true
+    ],
+    "nui": [
+     "N0000000160",
+     "M0001335",
+     "N0000175722"
+    ],
+    "pharm_class_moa": [
+     "Cyclooxygenase Inhibitors [MoA]"
+    ],
+    "pharm_class_cs": [
+     "Anti-Inflammatory Agents, Non-Steroidal [CS]"
+    ],
+    "pharm_class_epc": [
+     "Nonsteroidal Anti-inflammatory Drug [EPC]"
+    ],
+    "unii": [
+     "4OD433S209",
+     "WK2XYI10QM"
+    ]
+   },
+   "marketing_category": "NDA",
+   "dosage_form": "TABLET, COATED",
+   "spl_id": "15971707-84cd-4742-e063-6394a90af906",
+   "product_type": "HUMAN OTC DRUG",
+   "route": [
+    "ORAL"
+   ],
+   "marketing_start_date": "20051221",
+   "product_id": "0573-0164_15971707-84cd-4742-e063-6394a90af906",
+   "application_number": "NDA021394",
+   "brand_name_base": "ADVIL PM",
+   "pharm_class": [
+    "Anti-Inflammatory Agents",
+    "Non-Steroidal [CS]",
+    "Cyclooxygenase Inhibitors [MoA]",
+    "Histamine H1 Receptor Antagonists [MoA]",
+    "Histamine-1 Receptor Antagonist [EPC]",
+    "Nonsteroidal Anti-inflammatory Drug [EPC]"
+   ]
+  },
+  {
+   "product_ndc": "0573-0167",
+   "generic_name": "diphenhydramine HCl, ibuprofen",
+   "labeler_name": "Haleon US Holdings LLC",
+   "brand_name": "ADVIL PM",
+   "active_ingredients": [
+    {
+     "name": "DIPHENHYDRAMINE HYDROCHLORIDE",
+     "strength": "25 mg/1"
+    },
+    {
+     "name": "IBUPROFEN",
+     "strength": "200 mg/1"
+    }
+   ],
+   "finished": true,
+   "packaging": [
+    {
+     "package_ndc": "0573-0167-25",
+     "description": "1 BOTTLE in 1 CARTON (0573-0167-25)  / 20 CAPSULE, LIQUID FILLED in 1 BOTTLE",
+     "marketing_start_date": "20051220",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0167-26",
+     "description": "1 BOTTLE in 1 CARTON (0573-0167-26)  / 30 CAPSULE, LIQUID FILLED in 1 BOTTLE",
+     "marketing_start_date": "20051220",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0167-43",
+     "description": "1 BOTTLE in 1 CARTON (0573-0167-43)  / 40 CAPSULE, LIQUID FILLED in 1 BOTTLE",
+     "marketing_start_date": "20051220",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0167-44",
+     "description": "1 BOTTLE in 1 CARTON (0573-0167-44)  / 50 CAPSULE, LIQUID FILLED in 1 BOTTLE",
+     "marketing_start_date": "20051220",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0167-55",
+     "description": "1 BOTTLE in 1 CARTON (0573-0167-55)  / 80 CAPSULE, LIQUID FILLED in 1 BOTTLE",
+     "marketing_start_date": "20051220",
+     "sample": false
+    },
+    {
+     "package_ndc": "0573-0167-56",
+     "description": "1 BOTTLE in 1 CARTON (0573-0167-56)  / 100 CAPSULE, LIQUID FILLED in 1 BOTTLE",
+     "marketing_start_date": "20051220",
+     "sample": false
+    }
+   ],
+   "listing_expiration_date": "20271231",
+   "openfda": {
+    "manufacturer_name": [
+     "Haleon US Holdings LLC"
+    ],
+    "rxcui": [
+     "901814"
+    ],
+    "spl_set_id": [
+     "405afdb4-c157-1d88-f232-848063ba4714"
+    ],
+    "is_original_packager": [
+     true
+    ],
+    "nui": [
+     "N0000000160",
+     "M0001335",
+     "N0000175722"
+    ],
+    "pharm_class_moa": [
+     "Cyclooxygenase Inhibitors [MoA]"
+    ],
+    "pharm_class_cs": [
+     "Anti-Inflammatory Agents, Non-Steroidal [CS]"
+    ],
+    "pharm_class_epc": [
+     "Nonsteroidal Anti-inflammatory Drug [EPC]"
+    ],
+    "unii": [
+     "WK2XYI10QM",
+     "TC2D6JAD40"
+    ]
+   },
+   "marketing_category": "NDA",
+   "dosage_form": "CAPSULE, LIQUID FILLED",
+   "spl_id": "57c5339d-4ab8-ce7f-e063-6394a90a75a5",
+   "product_type": "HUMAN OTC DRUG",
+   "route": [
+    "ORAL"
+   ],
+   "marketing_start_date": "20051220",
+   "product_id": "0573-0167_57c5339d-4ab8-ce7f-e063-6394a90a75a5",
+   "application_number": "NDA021393",
+   "brand_name_base": "ADVIL PM",
+   "pharm_class": [
+    "Anti-Inflammatory Agents",
+    "Non-Steroidal [CS]",
+    "Cyclooxygenase Inhibitors [MoA]",
+    "Histamine H1 Receptor Antagonists [MoA]",
+    "Histamine-1 Receptor Antagonist [EPC]",
+    "Nonsteroidal Anti-inflammatory Drug [EPC]"
+   ]
+  },
+  {
+   "product_ndc": "53209-2001",
+   "generic_name": "Ibuprofen",
+   "labeler_name": "Morning Star OTC",
+   "brand_name": "Motrin IB",
+   "active_ingredients": [
+    {
+     "name": "IBUPROFEN",
+     "strength": "200 mg/1"
+    }
+   ],
+   "finished": true,
+   "packaging": [
+    {
+     "package_ndc": "53209-2001-2",
+     "description": "25 BLISTER PACK in 1 POUCH (53209-2001-2)  / 2 TABLET, FILM COATED in 1 BLISTER PACK (53209-2001-1)",
+     "marketing_start_date": "20250619",
+     "sample": false
+    }
+   ],
+   "listing_expiration_date": "20261231",
+   "openfda": {
+    "manufacturer_name": [
+     "Morning Star OTC"
+    ],
+    "rxcui": [
+     "201126",
+     "310965"
+    ],
+    "spl_set_id": [
+     "e69f00c4-b8ec-4a83-9eea-8cb2835ad776"
+    ],
+    "nui": [
+     "N0000000160",
+     "M0001335",
+     "N0000175722"
+    ],
+    "pharm_class_moa": [
+     "Cyclooxygenase Inhibitors [MoA]"
+    ],
+    "pharm_class_cs": [
+     "Anti-Inflammatory Agents, Non-Steroidal [CS]"
+    ],
+    "pharm_class_epc": [
+     "Nonsteroidal Anti-inflammatory Drug [EPC]"
+    ],
+    "unii": [
+     "WK2XYI10QM"
+    ]
+   },
+   "marketing_category": "ANDA",
+   "dosage_form": "TABLET, FILM COATED",
+   "spl_id": "37e92a7b-971f-c212-e063-6394a90ad710",
+   "product_type": "HUMAN OTC DRUG",
+   "route": [
+    "ORAL"
+   ],
+   "marketing_start_date": "20250619",
+   "product_id": "53209-2001_37e92a7b-971f-c212-e063-6394a90ad710",
+   "application_number": "ANDA077349",
+   "brand_name_base": "Motrin IB",
+   "pharm_class": [
+    "Anti-Inflammatory Agents",
+    "Non-Steroidal [CS]",
+    "Cyclooxygenase Inhibitors [MoA]",
+    "Nonsteroidal Anti-inflammatory Drug [EPC]"
+   ]
+  },
+  {
+   "product_ndc": "71821-010",
+   "generic_name": "Famotidine",
+   "labeler_name": "VKT Pharma Private Limited",
+   "brand_name": "Famotidine",
+   "active_ingredients": [
+    {
+     "name": "FAMOTIDINE",
+     "strength": "20 mg/1"
+    }
+   ],
+   "finished": true,
+   "packaging": [
+    {
+     "package_ndc": "71821-010-12",
+     "description": "144230 TABLET, FILM COATED in 1 BAG (71821-010-12)",
+     "marketing_start_date": "20220907",
+     "sample": false
+    }
+   ],
+   "listing_expiration_date": "20271231",
+   "openfda": {
+    "manufacturer_name": [
+     "VKT Pharma Private Limited"
+    ],
+    "rxcui": [
+     "199047",
+     "310273"
+    ],
+    "spl_set_id": [
+     "4e5db906-992f-476b-9d97-63a4c582bbdc"
+    ],
+    "is_original_packager": [
+     true
+    ],
+    "nui": [
+     "N0000000151",
+     "N0000175784"
+    ],
+    "pharm_class_moa": [
+     "Histamine H2 Receptor Antagonists [MoA]"
+    ],
+    "pharm_class_epc": [
+     "Histamine-2 Receptor Antagonist [EPC]"
+    ],
+    "unii": [
+     "5QZO15J2Z8"
+    ]
+   },
+   "marketing_category": "ANDA",
+   "dosage_form": "TABLET, FILM COATED",
+   "spl_id": "0fc43ab9-0e23-258f-e063-6394a90a0c40",
+   "product_type": "HUMAN OTC DRUG",
+   "route": [
+    "ORAL"
+   ],
+   "marketing_start_date": "20220128",
+   "product_id": "71821-010_0fc43ab9-0e23-258f-e063-6394a90a0c40",
+   "application_number": "ANDA215822",
+   "brand_name_base": "Famotidine",
+   "pharm_class": [
+    "Histamine H2 Receptor Antagonists [MoA]",
+    "Histamine-2 Receptor Antagonist [EPC]"
+   ]
+  },
+  {
+   "product_ndc": "71821-010",
+   "generic_name": "Famotidine",
+   "labeler_name": "VKT Pharma Private Limited",
+   "brand_name": "Famotidine",
+   "active_ingredients": [
+    {
+     "name": "FAMOTIDINE",
+     "strength": "20 mg/1"
+    }
+   ],
+   "finished": true,
+   "packaging": [
+    {
+     "package_ndc": "71821-010-13",
+     "description": "144230 TABLET, FILM COATED in 1 BAG (71821-010-13)",
+     "marketing_start_date": "20240523",
+     "sample": false
+    }
+   ],
+   "listing_expiration_date": "20271231",
+   "openfda": {
+    "manufacturer_name": [
+     "VKT Pharma Private Limited"
+    ],
+    "rxcui": [
+     "199047",
+     "310273"
+    ],
+    "spl_set_id": [
+     "1c2cfb3c-eaa0-403f-9589-d706afc06f51"
+    ],
+    "is_original_packager": [
+     true
+    ],
+    "nui": [
+     "N0000000151",
+     "N0000175784"
+    ],
+    "pharm_class_moa": [
+     "Histamine H2 Receptor Antagonists [MoA]"
+    ],
+    "pharm_class_epc": [
+     "Histamine-2 Receptor Antagonist [EPC]"
+    ],
+    "unii": [
+     "5QZO15J2Z8"
+    ]
+   },
+   "marketing_category": "ANDA",
+   "dosage_form": "TABLET, FILM COATED",
+   "spl_id": "6363f098-8bab-4879-bea8-41b60c4530eb",
+   "product_type": "HUMAN OTC DRUG",
+   "route": [
+    "ORAL"
+   ],
+   "marketing_start_date": "20240523",
+   "product_id": "71821-010_6363f098-8bab-4879-bea8-41b60c4530eb",
+   "application_number": "ANDA215822",
+   "brand_name_base": "Famotidine",
+   "pharm_class": [
+    "Histamine H2 Receptor Antagonists [MoA]",
+    "Histamine-2 Receptor Antagonist [EPC]"
+   ]
+  },
+  {
+   "product_ndc": "75053-0100",
+   "generic_name": "Gelsemium Sempervirens, Sambucus Nigra, Galphimia Glauca, Causticum, Eupatorium Perfoliatum, Ipecacuanha, Aconitum Napellus, Kali Bichromicum, Avena Sativa, Influenzinum (2024-2025), Lobelia Purpurescens, Anas Barbariae, Hepatis ET Cordis Extractum, Echinacea (Angustifolia), Canchalagua",
+   "labeler_name": "Nucleic Products, LLC",
+   "brand_name": "Influenseg",
+   "active_ingredients": [
+    {
+     "name": "GELSEMIUM SEMPERVIRENS ROOT",
+     "strength": "3 [hp_X]/mL"
+    },
+    {
+     "name": "SAMBUCUS NIGRA FLOWERING TOP",
+     "strength": "3 [hp_X]/mL"
+    },
+    {
+     "name": "GALPHIMIA GLAUCA FLOWERING TOP",
+     "strength": "4 [hp_X]/mL"
+    },
+    {
+     "name": "CAUSTICUM",
+     "strength": "6 [hp_X]/mL"
+    },
+    {
+     "name": "EUPATORIUM PERFOLIATUM FLOWERING TOP",
+     "strength": "6 [hp_X]/mL"
+    },
+    {
+     "name": "IPECAC",
+     "strength": "6 [hp_X]/mL"
+    },
+    {
+     "name": "ACONITUM NAPELLUS WHOLE",
+     "strength": "9 [hp_X]/mL"
+    },
+    {
+     "name": "POTASSIUM DICHROMATE",
+     "strength": "9 [hp_X]/mL"
+    },
+    {
+     "name": "AVENA SATIVA FLOWERING TOP",
+     "strength": "12 [hp_X]/mL"
+    },
+    {
+     "name": "INFLUENZA A VIRUS A/VICTORIA/4897/2022 IVR-238 (H1N1) ANTIGEN (FORMALDEHYDE INACTIVATED)",
+     "strength": "12 [hp_C]/mL"
+    },
+    {
+     "name": "INFLUENZA A VIRUS A/THAILAND/8/2022 IVR-237 (H3N2) ANTIGEN (FORMALDEHYDE INACTIVATED)",
+     "strength": "12 [hp_C]/mL"
+    },
+    {
+     "name": "INFLUENZA B VIRUS B/AUSTRIA/1359417/2021 BVR-26 WHOLE",
+     "strength": "12 [hp_C]/mL"
+    },
+    {
+     "name": "INFLUENZA B VIRUS B/PHUKET/3073/2013 BVR-1B WHOLE",
+     "strength": "12 [hp_C]/mL"
+    },
+    {
+     "name": "PRATIA PURPURASCENS",
+     "strength": "16 [hp_X]/mL"
+    },
+    {
+     "name": "CAIRINA MOSCHATA HEART/LIVER AUTOLYSATE",
+     "strength": "16 [hp_X]/mL"
+    },
+    {
+     "name": "ECHINACEA ANGUSTIFOLIA WHOLE",
+     "strength": "3 [hp_C]/mL"
+    },
+    {
+     "name": "ZELTNERA VENUSTA WHOLE FLOWERING",
+     "strength": "30 [hp_C]/mL"
+    }
+   ],
+   "finished": true,
+   "packaging": [
+    {
+     "package_ndc": "75053-0100-1",
+     "description": "118 mL in 1 BOTTLE, DROPPER (75053-0100-1)",
+     "marketing_start_date": "20260227",
+     "sample": false
+    }
+   ],
+   "listing_expiration_date": "20271231",
+   "openfda": {
+    "manufacturer_name": [
+     "Nucleic Products, LLC"
+    ],
+    "spl_set_id": [
+     "6d673ec9-fdb3-48a0-9a4f-bb65e290f9a4"
+    ],
+    "is_original_packager": [
+     true
+    ],
+    "unii": [
+     "639KR60Q1Q",
+     "CT03BSA18U",
+     "93PH5Q8M7E",
+     "DD5FO1WKFU",
+     "1W0775VX6E",
+     "62I3C8233L",
+     "U0NQ8555JD",
+     "T4423S18FM",
+     "MA9CQJ3F7F",
+     "AU5C98U4BB",
+     "6TU4EY6UNW",
+     "CYK5P89K8X",
+     "PS2DCE2WVF",
+     "901NKD188B",
+     "RN2HC612GY",
+     "VB06AV5US8",
+     "H93GMC21MW"
+    ]
+   },
+   "marketing_category": "UNAPPROVED HOMEOPATHIC",
+   "dosage_form": "LIQUID",
+   "spl_id": "3602f83f-033b-4c57-8769-3e57782429e5",
+   "product_type": "HUMAN OTC DRUG",
+   "route": [
+    "ORAL"
+   ],
+   "marketing_start_date": "20260227",
+   "product_id": "75053-0100_3602f83f-033b-4c57-8769-3e57782429e5",
+   "brand_name_base": "Influenseg"
+  },
+  {
+   "product_ndc": "75053-0010",
+   "generic_name": "Eupatorium Perfoliatum, Berberis Vulgaris, Mentha Pulegium, Moschus, Benzinum, Sepia, Baryta Carbonica, Glandula Suprarenalis Suis, Hypophysis Suis, Hypothalamus Suis, Thyroidinum (Suis), Pyridoxinum Hydrochloricum, Gelsemium Sempervirens, Natrum Carbonicum, Nux Vomica, Staphysagria",
+   "labeler_name": "Nucleic Products, LLC",
+   "brand_name": "Hypothaltem",
+   "active_ingredients": [
+    {
+     "name": "EUPATORIUM PERFOLIATUM FLOWERING TOP",
+     "strength": "6 [hp_X]/mL"
+    },
+    {
+     "name": "BERBERIS VULGARIS ROOT BARK",
+     "strength": "9 [hp_X]/mL"
+    },
+    {
+     "name": "MENTHA PULEGIUM WHOLE",
+     "strength": "9 [hp_X]/mL"
+    },
+    {
+     "name": "MOSCHUS MOSCHIFERUS MUSK SAC RESIN",
+     "strength": "9 [hp_X]/mL"
+    },
+    {
+     "name": "BENZENE",
+     "strength": "9 [hp_X]/mL"
+    },
+    {
+     "name": "SEPIA OFFICINALIS JUICE",
+     "strength": "9 [hp_X]/mL"
+    },
+    {
+     "name": "BARIUM CARBONATE",
+     "strength": "12 [hp_X]/mL"
+    },
+    {
+     "name": "SUS SCROFA ADRENAL GLAND",
+     "strength": "7 [hp_C]/mL"
+    },
+    {
+     "name": "SUS SCROFA PITUITARY GLAND",
+     "strength": "7 [hp_C]/mL"
+    },
+    {
+     "name": "SUS SCROFA HYPOTHALAMUS",
+     "strength": "7 [hp_C]/mL"
+    },
+    {
+     "name": "THYROID, UNSPECIFIED",
+     "strength": "7 [hp_C]/mL"
+    },
+    {
+     "name": "PYRIDOXINE HYDROCHLORIDE",
+     "strength": "12 [hp_C]/mL"
+    },
+    {
+     "name": "GELSEMIUM SEMPERVIRENS ROOT",
+     "strength": "30 [hp_C]/mL"
+    },
+    {
+     "name": "SODIUM CARBONATE",
+     "strength": "30 [hp_C]/mL"
+    },
+    {
+     "name": "STRYCHNOS NUX-VOMICA SEED",
+     "strength": "30 [hp_C]/mL"
+    },
+    {
+     "name": "DELPHINIUM STAPHISAGRIA SEED",
+     "strength": "30 [hp_C]/mL"
+    }
+   ],
+   "finished": true,
+   "packaging": [
+    {
+     "package_ndc": "75053-0010-1",
+     "description": "118 mL in 1 BOTTLE, DROPPER (75053-0010-1)",
+     "marketing_start_date": "20210511",
+     "sample": false
+    }
+   ],
+   "listing_expiration_date": "20271231",
+   "openfda": {
+    "manufacturer_name": [
+     "Nucleic Products, LLC"
+    ],
+    "spl_set_id": [
+     "b95050f2-f40d-4e84-8752-4d7ad75390c9"
+    ],
+    "is_original_packager": [
+     true
+    ],
+    "nui": [
+     "N0000185375",
+     "N0000175629",
+     "N0000184306",
+     "N0000185001",
+     "M0000728",
+     "M0016962",
+     "M0516536"
+    ],
+    "pharm_class_epc": [
+     "Non-Standardized Plant Allergenic Extract [EPC]"
+    ],
+    "pharm_class_pe": [
+     "Increased Histamine Release [PE]",
+     "Cell-mediated Immunity [PE]",
+     "Increased IgG Production [PE]"
+    ],
+    "pharm_class_cs": [
+     "Allergens [CS]",
+     "Plant Proteins [CS]",
+     "Seed Storage Proteins [CS]"
+    ],
+    "unii": [
+     "1W0775VX6E",
+     "1TH8Q20J0U",
+     "5Q6Y7K4846",
+     "8KFK4W7KP7",
+     "J64922108F",
+     "QDL83WN8C2",
+     "6P669D8HQ8",
+     "398IYQ16YV",
+     "L0PFEMQ1DT",
+     "N6R0856Z79",
+     "0B4FDL9I6P",
+     "68Y4CF58BV",
+     "639KR60Q1Q",
+     "45P3261C7T",
+     "269XH13919",
+     "00543AP1JV"
+    ]
+   },
+   "marketing_category": "UNAPPROVED HOMEOPATHIC",
+   "dosage_form": "LIQUID",
+   "spl_id": "4e326cd0-c586-4d82-80ef-0ae5dd294dcc",
+   "product_type": "HUMAN OTC DRUG",
+   "route": [
+    "ORAL"
+   ],
+   "marketing_start_date": "20210511",
+   "product_id": "75053-0010_4e326cd0-c586-4d82-80ef-0ae5dd294dcc",
+   "brand_name_base": "Hypothaltem",
+   "pharm_class": [
+    "Allergens [CS]",
+    "Analogs/Derivatives [Chemical/Ingredient]",
+    "Cell-mediated Immunity [PE]",
+    "Increased Histamine Release [PE]",
+    "Increased IgG Production [PE]",
+    "Non-Standardized Plant Allergenic Extract [EPC]",
+    "Plant Proteins [CS]",
+    "Seed Storage Proteins [CS]",
+    "Vitamin B 6 [Chemical/Ingredient]",
+    "Vitamin B6 Analog [EPC]"
+   ]
+  },
+  {
+   "product_ndc": "72043-2582",
+   "generic_name": "zinc oxide and titanium dioxide sunscreen",
+   "labeler_name": "CP Skin Health Group, Inc.",
+   "brand_name": "EltaMD UV Pure SPF47",
+   "active_ingredients": [
+    {
+     "name": "ZINC OXIDE",
+     "strength": "100 g/1000g"
+    },
+    {
+     "name": "TITANIUM DIOXIDE",
+     "strength": "55 g/1000g"
+    }
+   ],
+   "finished": true,
+   "packaging": [
+    {
+     "package_ndc": "72043-2582-2",
+     "description": "2 g in 1 PACKET (72043-2582-2)",
+     "marketing_start_date": "20220706",
+     "sample": false
+    },
+    {
+     "package_ndc": "72043-2582-4",
+     "description": "114 g in 1 BOTTLE (72043-2582-4)",
+     "marketing_start_date": "20180110",
+     "sample": false
+    }
+   ],
+   "listing_expiration_date": "20261231",
+   "openfda": {
+    "manufacturer_name": [
+     "CP Skin Health Group, Inc."
+    ],
+    "spl_set_id": [
+     "9afe900b-4186-4189-a871-ad6f26fc26e4"
+    ],
+    "is_original_packager": [
+     true
+    ],
+    "upc": [
+     "0390205025824"
+    ],
+    "unii": [
+     "SOI2LOH54Z",
+     "15FIX9V2JP"
+    ]
+   },
+   "marketing_category": "OTC MONOGRAPH DRUG",
+   "dosage_form": "CREAM",
+   "spl_id": "6f7bbffb-97bc-4a8e-aba3-dbd9bd1ef381",
+   "product_type": "HUMAN OTC DRUG",
+   "route": [
+    "TOPICAL"
+   ],
+   "marketing_start_date": "20180110",
+   "product_id": "72043-2582_6f7bbffb-97bc-4a8e-aba3-dbd9bd1ef381",
+   "application_number": "M020",
+   "brand_name_base": "EltaMD UV Pure SPF47",
+   "pharm_class": [
+    "Copper Absorption Inhibitor [EPC]",
+    "Decreased Copper Ion Absorption [PE]"
+   ]
+  },
+  {
+   "product_ndc": "72043-2500",
+   "generic_name": "Zinc oxide and Octinoxate sunscreen",
+   "labeler_name": "CP Skin Health Group, Inc.",
+   "brand_name": "EltaMD UV Clear SPF46",
+   "active_ingredients": [
+    {
+     "name": "ZINC OXIDE",
+     "strength": "90 g/1000g"
+    },
+    {
+     "name": "OCTINOXATE",
+     "strength": "75 g/1000g"
+    }
+   ],
+   "finished": true,
+   "packaging": [
+    {
+     "package_ndc": "72043-2500-1",
+     "description": "48 g in 1 BOTTLE (72043-2500-1)",
+     "marketing_start_date": "20180110",
+     "sample": false
+    },
+    {
+     "package_ndc": "72043-2500-1",
+     "description": "48 g in 1 BOTTLE (72043-2500-1)",
+     "marketing_start_date": "20250501",
+     "sample": false
+    },
+    {
+     "package_ndc": "72043-2500-2",
+     "description": "2 g in 1 PACKET (72043-2500-2)",
+     "marketing_start_date": "20220706",
+     "sample": false
+    },
+    {
+     "package_ndc": "72043-2500-3",
+     "description": "106 g in 1 TUBE (72043-2500-3)",
+     "marketing_start_date": "20250604",
+     "sample": false
+    },
+    {
+     "package_ndc": "72043-2500-5",
+     "description": "14 g in 1 BOTTLE (72043-2500-5)",
+     "marketing_start_date": "20201217",
+     "sample": false
+    }
+   ],
+   "listing_expiration_date": "20261231",
+   "openfda": {
+    "manufacturer_name": [
+     "CP Skin Health Group, Inc."
+    ],
+    "spl_set_id": [
+     "60438ec5-0b1f-45fd-8ce4-debfdbdc6721"
+    ],
+    "is_original_packager": [
+     true
+    ],
+    "unii": [
+     "SOI2LOH54Z",
+     "4Y5P7MUD51"
+    ]
+   },
+   "marketing_category": "OTC MONOGRAPH DRUG",
+   "dosage_form": "LOTION",
+   "spl_id": "e1ccd02f-6246-493f-8ce5-a39b29b7bde7",
+   "product_type": "HUMAN OTC DRUG",
+   "route": [
+    "TOPICAL"
+   ],
+   "marketing_start_date": "20180110",
+   "product_id": "72043-2500_e1ccd02f-6246-493f-8ce5-a39b29b7bde7",
+   "application_number": "M020",
+   "brand_name_base": "EltaMD UV Clear SPF46",
+   "pharm_class": [
+    "Copper Absorption Inhibitor [EPC]",
+    "Decreased Copper Ion Absorption [PE]"
+   ]
+  },
+  {
+   "product_ndc": "71101-041",
+   "generic_name": "Lidocaine",
+   "labeler_name": "Veridian Healthcare",
+   "brand_name": "Theracare Lidocaine Pain relief",
+   "active_ingredients": [
+    {
+     "name": "LIDOCAINE",
+     "strength": "4 g/100g"
+    }
+   ],
+   "finished": true,
+   "packaging": [
+    {
+     "package_ndc": "71101-041-06",
+     "description": "6 POUCH in 1 BOX (71101-041-06)  / 1 g in 1 POUCH",
+     "marketing_start_date": "20240701",
+     "sample": false
+    }
+   ],
+   "listing_expiration_date": "20261231",
+   "openfda": {
+    "manufacturer_name": [
+     "Veridian Healthcare"
+    ],
+    "rxcui": [
+     "1737778"
+    ],
+    "spl_set_id": [
+     "1d8a3679-637d-94c0-e063-6294a90a9ecf"
+    ],
+    "is_original_packager": [
+     true
+    ],
+    "upc": [
+     "0845717010566"
+    ],
+    "nui": [
+     "N0000175682",
+     "M0000897",
+     "N0000175426",
+     "N0000175976"
+    ],
+    "pharm_class_epc": [
+     "Amide Local Anesthetic [EPC]",
+     "Antiarrhythmic [EPC]"
+    ],
+    "pharm_class_cs": [
+     "Amides [CS]"
+    ],
+    "pharm_class_pe": [
+     "Local Anesthesia [PE]"
+    ],
+    "unii": [
+     "98PI200987"
+    ]
+   },
+   "marketing_category": "OTC MONOGRAPH DRUG",
+   "dosage_form": "PATCH",
+   "spl_id": "200abefc-e3e4-c65a-e063-6394a90a9a0e",
+   "product_type": "HUMAN OTC DRUG",
+   "route": [
+    "PERCUTANEOUS",
+    "TOPICAL",
+    "TRANSDERMAL"
+   ],
+   "marketing_start_date": "20240701",
+   "product_id": "71101-041_200abefc-e3e4-c65a-e063-6394a90a9a0e",
+   "application_number": "M017",
+   "brand_name_base": "Theracare Lidocaine Pain relief",
+   "pharm_class": [
+    "Amide Local Anesthetic [EPC]",
+    "Amides [CS]",
+    "Antiarrhythmic [EPC]",
+    "Local Anesthesia [PE]"
+   ]
+  }
+ ]
+}

@@ -2,3 +2,4 @@
 __pycache__/
 .DS_Store
 vision/ocr_test.jpg
+vision/products/data/

@@ -1,4 +1,8 @@
+
 opencv-python
 ultralytics
 easyocr
 pytest
+opencv-python
+ultralytics
+easyocr
