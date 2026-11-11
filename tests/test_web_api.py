@@ -98,6 +98,15 @@ class GeneralTests(ApiTestCase):
         self.assertIn(b"Capture barcode", response.data)
         self.assertIn(b"Identify medicine", response.data)
 
+    def test_page_has_voice_controls_off_by_default(self):
+        client = self.client()
+        page = client.get("/").data.decode()
+        for expected in ('id="enable-voice"', 'id="disable-voice" type="button" disabled', "voice off",
+                         'id="voice-volume"', "static/announcer.js"):
+            self.assertIn(expected, page)
+        self.assertLess(page.index("announcer.js"), page.index("app.js"))  # app.js uses it
+        self.assertEqual(client.get("/static/announcer.js").status_code, 200)
+
     def test_unknown_route_and_method_are_json_errors(self):
         client = self.client()
         self.assertEqual(client.get("/api/nope").get_json()["error"]["code"], "http_error")

@@ -177,6 +177,55 @@ const AWARENESS_MAX_FAILURES = 5;
 const awareness = { on: false, controller: null, timer: null, failures: 0, last: null };
 const overlay = $("overlay");
 
+// ---------- voice announcements (speech runs in this browser; see announcer.js)
+
+const announcements = new Announcer.AnnouncementManager();
+const speaker = new Announcer.Speaker(window.speechSynthesis, window.SpeechSynthesisUtterance, (reason) => {
+  setVoiceState("voice error: " + reason, "bad");      // visual detection carries on regardless
+  log("Voice error: " + reason);
+});
+
+function setVoiceState(text, tone) {
+  $("voice-state").textContent = text;
+  $("voice-state").className = "pill" + (tone ? " " + tone : "");
+}
+
+function updateVoiceButtons() {
+  $("enable-voice").disabled = speaker.enabled;
+  $("disable-voice").disabled = !speaker.enabled;
+}
+
+// Called from a tap, which is what lets iOS Safari play speech afterwards.
+function enableVoice() {
+  if (!speaker.supported) {
+    setVoiceState("voice not supported in this browser", "bad");
+    log("Voice: SpeechSynthesis is not available in this browser");
+    return;
+  }
+  speaker.volume = Number($("voice-volume").value);
+  speaker.enable("Voice announcements on.");
+  setVoiceState("voice on", "good");
+  $("voice-last").textContent = awareness.on ? "" : "Start awareness to hear objects.";
+  log("Voice enabled");
+  updateVoiceButtons();
+}
+
+function disableVoice() {
+  speaker.disable();
+  setVoiceState("voice off");
+  $("voice-last").textContent = "";
+  log("Voice disabled");
+  updateVoiceButtons();
+}
+
+// One detection result in, at most one spoken phrase out.
+function announce(detections) {
+  const text = announcements.update(detections, performance.now(), speaker.canSpeak);
+  if (!text || !speaker.say(text)) return;
+  $("voice-last").textContent = "Said: " + text;
+  log("Voice: " + text);
+}
+
 function setAwarenessState(text, tone) {
   $("awareness-state").textContent = text;
   $("awareness-state").className = "pill" + (tone ? " " + tone : "");
@@ -188,6 +237,7 @@ async function startAwareness() {
   if (!stream) { setAwarenessState("camera unavailable", "bad"); return; }
   awareness.on = true;
   awareness.failures = 0;
+  announcements.reset();
   setAwarenessState("starting…");
   log("Awareness started");
   updateButtons();
@@ -200,6 +250,9 @@ function stopAwareness(reason) {
   clearTimeout(awareness.timer);
   if (awareness.controller) awareness.controller.abort();   // cancel the request in flight
   awareness.controller = awareness.last = null;
+  speaker.cancel();                                         // stop talking, nothing left queued
+  announcements.reset();
+  if (speaker.enabled) $("voice-last").textContent = "";
   drawOverlay();                                            // clear stale boxes
   $("awareness-list").replaceChildren();
   $("awareness-latency").textContent = "";
@@ -265,6 +318,7 @@ function renderAwareness(body, totalMs) {
     return item;
   }));
   drawOverlay();
+  announce(body.detections);
 }
 
 // Where the video picture sits inside its box. The preview uses object-fit: cover, so the
@@ -454,11 +508,15 @@ $("flip-camera").addEventListener("click", () => { facing = facing === "environm
 $("camera-select").addEventListener("change", (event) => startCamera(event.target.value));
 $("scan-barcode").addEventListener("click", () => { fallbackBarcode = null; send("/api/barcode", "Barcode scan", renderBarcode); });
 $("identify").addEventListener("click", () => { fallbackBarcode = null; send("/api/identify", "Identification", renderIdentify); });
+$("enable-voice").addEventListener("click", enableVoice);
+$("disable-voice").addEventListener("click", disableVoice);
+$("voice-volume").addEventListener("input", (event) => { speaker.volume = Number(event.target.value); });
 $("start-awareness").addEventListener("click", startAwareness);
 $("stop-awareness").addEventListener("click", () => stopAwareness("stopped"));
 window.addEventListener("resize", drawOverlay);
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) return;
+  speaker.cancel();
   stopAwareness("page inactive");
   if (stream && !busy) { stopCamera(); log("Camera stopped (page hidden)"); }
 });

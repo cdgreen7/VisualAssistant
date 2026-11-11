@@ -84,3 +84,5 @@ button.block { display: block; width: 100%; margin-top: 12px; min-height: 52px; 
 .objects li:last-child { border-bottom: 0; }
 .objects .name { flex: 1; font-weight: 600; overflow-wrap: anywhere; }
 .objects .percent { color: var(--muted); font-variant-numeric: tabular-nums; }
+.volume { display: flex; align-items: center; gap: 10px; margin-top: 10px; color: var(--muted); font-size: 0.9rem; }
+.volume input { flex: 1; min-height: 32px; accent-color: var(--accent); }

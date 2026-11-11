@@ -40,7 +40,15 @@
       </div>
       <p class="status-line"><span id="awareness-state" class="pill">off</span>
         <span id="awareness-latency" class="muted small"></span></p>
-      <ul id="awareness-list" class="objects" aria-live="polite"></ul>
+      <div class="row">
+        <button id="enable-voice" type="button">Enable voice</button>
+        <button id="disable-voice" type="button" disabled>Disable voice</button>
+      </div>
+      <p class="status-line"><span id="voice-state" class="pill">voice off</span>
+        <span id="voice-last" class="muted small"></span></p>
+      <label class="volume" for="voice-volume">Voice volume
+        <input id="voice-volume" type="range" min="0" max="1" step="0.1" value="1"></label>
+      <ul id="awareness-list" class="objects"></ul>
     </section>
 
     <section aria-live="polite">
@@ -58,6 +66,7 @@
   </main>
 
   <canvas id="canvas" hidden></canvas>
+  <script src="{{ url_for('static', filename='announcer.js') }}"></script>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>
