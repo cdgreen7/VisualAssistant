@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <title>Visual Assistant</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div id="stage" class="stage">
+    <video id="video" playsinline muted autoplay></video>
+    <canvas id="overlay" class="overlay" aria-hidden="true"></canvas>
+    <p id="camera-message" class="camera-message">Camera is off.</p>
+    <div id="busy" class="busy" hidden><span class="spinner"></span><span id="busy-text">Working…</span></div>
+
+    <header class="top-bar">
+      <h1>Visual Assistant</h1>
+      <div class="pills">
+        <span id="server-state" class="pill">checking server…</span>
+        <span id="awareness-state" class="pill">off</span>
+        <span id="voice-state" class="pill">voice off</span>
+      </div>
+    </header>
+
+    <div class="bottom">
+      <div id="scene" class="scene panel" hidden>
+        <h2>Scene</h2>
+        <ul id="awareness-list"></ul>
+        <p id="scene-summary" class="scene-summary"></p>
+      </div>
+
+      <div id="tools" class="tools panel" hidden>
+        <button id="scan-barcode" type="button" disabled>Capture barcode</button>
+        <button id="identify" type="button" disabled>Identify medicine</button>
+        <button id="toggle-camera" type="button">Start camera</button>
+        <label class="visually-hidden" for="camera-select">Camera</label>
+        <select id="camera-select" hidden></select>
+      </div>
+
+      <div class="controls" role="group" aria-label="Main controls">
+        <button id="start-awareness" type="button" class="primary">Start awareness</button>
+        <button id="stop-awareness" type="button" class="primary active" disabled hidden>Stop awareness</button>
+        <button id="enable-voice" type="button">Enable voice</button>
+        <button id="disable-voice" type="button" disabled hidden class="active">Disable voice</button>
+        <button id="flip-camera" type="button" class="compact" disabled>Flip</button>
+        <button id="more-tools" type="button" class="compact" aria-expanded="false" aria-controls="tools">Scan</button>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <section aria-live="polite">
+      <h2>Result</h2>
+      <div id="result"><p class="muted">Tap Scan, then capture a barcode or identify a medicine.</p></div>
+    </section>
+
+    <section>
+      <h2>Status</h2>
+      <p class="status-line"><span id="awareness-latency" class="muted small">Awareness is off.</span></p>
+      <p class="status-line"><span id="voice-last" class="muted small"></span></p>
+      <label class="volume" for="voice-volume">Voice volume
+        <input id="voice-volume" type="range" min="0" max="1" step="0.1" value="1"></label>
+    </section>
+
+    <section>
+      <h2>Activity</h2>
+      <ol id="log" class="log"></ol>
+    </section>
+
+    <p class="muted small">Development prototype. Results describe what the label or barcode appears to say;
+      they are not medical or dosage advice.</p>
+  </main>
+
+  <canvas id="canvas" hidden></canvas>
+  <script src="{{ url_for('static', filename='announcer.js') }}"></script>
+  <script src="{{ url_for('static', filename='view.js') }}"></script>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
