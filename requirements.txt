@@ -7,3 +7,4 @@ opencv-python
 ultralytics
 easyocr
 zxing-cpp
+flask

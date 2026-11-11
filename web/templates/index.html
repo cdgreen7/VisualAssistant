@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Visual Assistant</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <h1>Visual Assistant</h1>
+    <span id="server-state" class="pill">checking server…</span>
+  </header>
+
+  <main>
+    <section class="camera">
+      <div class="viewfinder">
+        <video id="video" playsinline muted autoplay></video>
+        <canvas id="overlay" class="overlay" aria-hidden="true"></canvas>
+        <p id="camera-message" class="camera-message">Camera is off.</p>
+        <div id="busy" class="busy" hidden><span class="spinner"></span><span id="busy-text">Working…</span></div>
+      </div>
+      <div class="row">
+        <button id="toggle-camera" type="button">Start camera</button>
+        <button id="flip-camera" type="button" class="secondary" disabled>Flip</button>
+        <label class="visually-hidden" for="camera-select">Camera</label>
+        <select id="camera-select" hidden></select>
+      </div>
+      <div class="row">
+        <button id="scan-barcode" type="button" class="primary" disabled>Capture barcode</button>
+        <button id="identify" type="button" class="primary" disabled>Identify medicine</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Environmental awareness</h2>
+      <div class="row first">
+        <button id="start-awareness" type="button" class="primary">Start awareness</button>
+        <button id="stop-awareness" type="button" disabled>Stop awareness</button>
+      </div>
+      <p class="status-line"><span id="awareness-state" class="pill">off</span>
+        <span id="awareness-latency" class="muted small"></span></p>
+      <ul id="awareness-list" class="objects" aria-live="polite"></ul>
+    </section>
+
+    <section aria-live="polite">
+      <h2>Result</h2>
+      <div id="result"><p class="muted">Start the camera, then capture a barcode or identify a medicine.</p></div>
+    </section>
+
+    <section>
+      <h2>Activity</h2>
+      <ol id="log" class="log"></ol>
+    </section>
+
+    <p class="muted small">Development prototype. Results describe what the label or barcode appears to say;
+      they are not medical or dosage advice.</p>
+  </main>
+
+  <canvas id="canvas" hidden></canvas>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
