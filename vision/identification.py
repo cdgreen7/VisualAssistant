@@ -54,9 +54,10 @@ def identify_detection(frame, detections, recognizer, matcher, class_name=TARGET
     return detection, ocr_results, matcher.match(ocr_results)
 
 
-def format_identification(detection, ocr_results, result):
+def format_identification(detection, ocr_results, result, position=None):
     lines = ["--- PRODUCT IDENTIFICATION ---", ""]
-    lines.append(f"{detection['class_name']} {detection['confidence']:.2f} box={detection['box']}")
+    where = f" {position}" if position else ""
+    lines.append(f"{detection['class_name']} {detection['confidence']:.2f}{where} box={detection['box']}")
     lines += ["", "OCR:"]
     if ocr_results:
         width = max(len(r["text"]) for r in ocr_results) + 2
@@ -79,6 +80,8 @@ def format_identification(detection, ocr_results, result):
         for candidate in result.candidates[:MAX_CANDIDATES_SHOWN]:
             missing = candidate.missing_ingredients + candidate.base_only_ingredients
             note = f" (not observed: {', '.join(missing)})" if missing else ""
+            if candidate.brand_hint_records:
+                note += f" [{candidate.brand_hint_records} records match the observed brand hint]"
             lines.append("  - " + " + ".join(f"{n} {s}" for n, s in candidate.ingredients) + note)
         if len(result.candidates) > MAX_CANDIDATES_SHOWN:
             lines.append(f"  ... {len(result.candidates) - MAX_CANDIDATES_SHOWN} more")
