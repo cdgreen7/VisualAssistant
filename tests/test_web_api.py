@@ -102,7 +102,8 @@ class GeneralTests(ApiTestCase):
         client = self.client()
         page = client.get("/").data.decode()
         for expected in ('id="enable-voice"', 'id="disable-voice" type="button" disabled', "voice off",
-                         'id="voice-volume"', "static/announcer.js"):
+                         'id="voice-volume"', "static/announcer.js", "static/view.js",
+                         'id="scene"', 'id="start-awareness"', 'id="flip-camera"', 'id="scan-barcode"', 'id="identify"'):
             self.assertIn(expected, page)
         self.assertLess(page.index("announcer.js"), page.index("app.js"))  # app.js uses it
         self.assertEqual(client.get("/static/announcer.js").status_code, 200)
@@ -286,10 +287,16 @@ class DetectApiTests(ApiTestCase):
 
     def test_valid_detection_response(self):
         body = self.detect([self.found("person", np.float32(0.94), (np.int64(320), np.int64(20), np.int64(580), np.int64(290)))])
-        self.assertEqual(set(body), {"detections", "image_width", "image_height", "inference_time_ms", "detection_count"})
+        # every field existing clients rely on is still there (tracking only adds fields)
+        self.assertLessEqual({"detections", "image_width", "image_height", "inference_time_ms", "detection_count"},
+                             set(body))
         self.assertEqual((body["image_width"], body["image_height"], body["detection_count"]), (900, 300, 1))
-        self.assertEqual(body["detections"], [{"class_name": "person", "confidence": body["detections"][0]["confidence"],
-                                               "position": "CENTER", "bounding_box": [320, 20, 580, 290]}])
+        (found,) = body["detections"]
+        self.assertEqual({k: found[k] for k in ("class_name", "position", "bounding_box")},
+                         {"class_name": "person", "position": "CENTER", "bounding_box": [320, 20, 580, 290]})
+        self.assertAlmostEqual(found["confidence"], 0.94, places=5)
+        # a request without a session is not tracked: the field is present but empty
+        self.assertEqual((found["track_id"], body["tracking"]), (None, "off"))
         self.assertIsInstance(body["inference_time_ms"], int)
         self.assertGreaterEqual(body["inference_time_ms"], 0)
 
@@ -358,6 +365,76 @@ class DetectApiTests(ApiTestCase):
             raise RuntimeError("weights file missing")
         response = self.post(self.client(detector=broken), "/api/detect")
         self.assertEqual((response.status_code, response.get_json()["error"]["code"]), (503, "initialization_failed"))
+
+
+class TrackingApiTests(ApiTestCase):
+    """track_id on /api/detect: state lives per session id, between separate requests."""
+
+    def setUp(self):
+        self.detector = FakeDetector([])
+        self.http = self.client(detector=lambda: self.detector)
+
+    def frame(self, session, number, detections, **extra):
+        self.detector.detections = detections
+        data = {"image": (io.BytesIO(DetectApiTests.WIDE), "frame.jpg"), **extra}
+        if session is not None:
+            data.update(session_id=session, frame=str(number))
+        return self.http.post("/api/detect", data=data, content_type="multipart/form-data")
+
+    def ids(self, session, number, detections):
+        body = self.frame(session, number, detections).get_json()
+        return [d["track_id"] for d in body["detections"]], body["tracking"]
+
+    @staticmethod
+    def person(x, confidence=0.9):
+        return {"class_id": 0, "class_name": "person", "confidence": confidence, "box": (x, 20, x + 140, 290)}
+
+    def test_ids_persist_across_separate_requests(self):
+        self.assertEqual(self.ids("session-one", 1, [self.person(50), self.person(500)]), ([1, 2], "ok"))
+        body = self.frame("session-one", 2, [self.person(560), self.person(120)]).get_json()
+        self.assertEqual(body["tracking"], "ok")
+        self.assertEqual([(d["track_id"], d["position"]) for d in body["detections"]], [(2, "RIGHT"), (1, "LEFT")])
+        self.assertEqual(self.ids("session-one", 3, [self.person(300)]), ([1], "ok"))   # moved to the centre
+
+    def test_without_a_session_nothing_is_tracked(self):
+        for _ in range(2):
+            self.assertEqual(self.ids(None, None, [self.person(50)]), ([None], "off"))
+
+    def test_concurrent_browser_sessions_are_independent(self):
+        self.assertEqual(self.ids("iphone-session", 1, [self.person(50)]), ([1], "ok"))
+        self.assertEqual(self.ids("laptop-session", 1, [self.person(60), self.person(500)]), ([1, 2], "ok"))
+        self.assertEqual(self.ids("iphone-session", 2, [self.person(500), self.person(55)]), ([2, 1], "ok"))
+        self.assertEqual(self.ids("laptop-session", 2, [self.person(505)]), ([2], "ok"))
+
+    def test_stale_and_out_of_order_frames(self):
+        self.ids("session-one", 1, [self.person(50)])
+        self.ids("session-one", 3, [self.person(60)])
+        self.assertEqual(self.ids("session-one", 2, [self.person(700)]), ([None], "stale"))
+        self.assertEqual(self.ids("session-one", 3, [self.person(700)]), ([None], "stale"))
+        self.assertEqual(self.ids("session-one", 4, [self.person(64)]), ([1], "ok"))
+
+    def test_reset_endpoint_and_new_session_start_from_one(self):
+        self.ids("session-one", 1, [self.person(50), self.person(500)])
+        response = self.http.post("/api/detect/reset", data={"session_id": "session-one"})
+        self.assertEqual((response.status_code, response.get_json()), (200, {"reset": True}))
+        self.assertEqual(self.http.post("/api/detect/reset", data={"session_id": "session-one"}).get_json(),
+                         {"reset": False})
+        self.assertEqual(self.ids("session-one", 1, [self.person(500)]), ([1], "ok"))
+        self.assertEqual(self.ids("session-two", 1, [self.person(500)]), ([1], "ok"))   # awareness restarted
+
+    def test_invalid_session_or_frame_is_rejected_before_any_work(self):
+        for session, number in (("short", 1), ("has spaces in it", 1), ("../../etc/passwd", 1), ("x" * 65, 1),
+                                ("session-one", "abc"), ("session-one", "-1"), ("session-one", "")):
+            response = self.frame(session, number, [self.person(50)])
+            self.assertEqual((response.status_code, response.get_json()["error"]["code"]), (400, "invalid_tracking"))
+        self.assertEqual(self.http.post("/api/detect/reset", data={}).status_code, 400)
+        self.assertEqual(self.load_counts, {})
+
+    def test_tracking_does_not_load_or_run_anything_else(self):
+        self.ids("session-one", 1, [self.person(50)])
+        self.ids("session-one", 2, [self.person(52)])
+        self.assertEqual(self.load_counts, {"detector": 1} if "detector" in self.load_counts else {})
+        self.assertEqual(self.recognizer.seen_shapes, [])
 
 
 class IdentifyApiTests(ApiTestCase):

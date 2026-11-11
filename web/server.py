@@ -20,6 +20,7 @@ from vision.barcode_scan import NO_BARCODE
 from vision.products.barcode_lookup import conflicting
 from web import serialize
 from web.services import ServiceError, VisionServices
+from web.track_sessions import OFF, SESSION_ID, TrackSessions
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_PIXELS = 25_000_000
@@ -43,10 +44,22 @@ def read_image(files):
     return image
 
 
-def create_app(services=None, max_upload_bytes=MAX_UPLOAD_BYTES):
+def read_tracking(form):
+    """(session id, frame number) when the client asks for tracking, else (None, None)."""
+    session_id = form.get("session_id")
+    if session_id is None:
+        return None, None
+    frame = form.get("frame", "")
+    if not SESSION_ID.fullmatch(session_id) or not frame.isdigit() or len(frame) > 12:
+        raise ServiceError(400, "invalid_tracking", "session_id or frame is not valid.")
+    return session_id, int(frame)
+
+
+def create_app(services=None, max_upload_bytes=MAX_UPLOAD_BYTES, track_sessions=None):
     app = Flask(__name__)
     app.config["MAX_CONTENT_LENGTH"] = max_upload_bytes
     services = services or VisionServices()
+    track_sessions = track_sessions or TrackSessions()
 
     def error(http_status, code, message):
         return jsonify({"error": {"code": code, "message": message}}), http_status
@@ -84,16 +97,29 @@ def create_app(services=None, max_upload_bytes=MAX_UPLOAD_BYTES):
 
     @app.post("/api/detect")
     def detect():
+        session_id, frame = read_tracking(request.form)
         image = read_image(request.files)
         height, width = image.shape[:2]
         detections, inference_ms = services.detect(image)
+        track_ids, tracking = [None] * len(detections), OFF
+        if session_id is not None:  # YOLO alone keeps no identity between requests
+            track_ids, tracking = track_sessions.track(session_id, frame, detections)
         return jsonify({
-            "detections": [serialize.environment_detection(d, width) for d in detections],
+            "detections": [serialize.environment_detection(d, width, track_id)
+                           for d, track_id in zip(detections, track_ids)],
             "image_width": width,
             "image_height": height,
             "inference_time_ms": round(inference_ms),
             "detection_count": len(detections),
+            "tracking": tracking,
         })
+
+    @app.post("/api/detect/reset")
+    def reset_tracking():
+        session_id = request.form.get("session_id", "")
+        if not SESSION_ID.fullmatch(session_id):
+            raise ServiceError(400, "invalid_tracking", "session_id is not valid.")
+        return jsonify({"reset": track_sessions.reset(session_id)})
 
     @app.post("/api/barcode")
     def barcode():

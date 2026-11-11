@@ -82,11 +82,16 @@ def detection(found, frame_width=None):
     return data
 
 
-def environment_detection(found, frame_width):
-    """One object for /api/detect; the box is in the submitted image's pixels."""
+def environment_detection(found, frame_width, track_id=None):
+    """One object for /api/detect; the box is in the submitted image's pixels.
+
+    track_id is a temporary per-session number, or None when the request is
+    not tracked or the object could not be associated reliably.
+    """
     return {"class_name": str(found["class_name"]), "confidence": float(found["confidence"]),
             "position": get_horizontal_position(found["box"], frame_width),
-            "bounding_box": _box(found["box"])}
+            "bounding_box": _box(found["box"]),
+            "track_id": int(track_id) if track_id is not None else None}
 
 
 def ocr_results(results):

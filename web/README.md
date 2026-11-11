@@ -16,11 +16,22 @@ iPhone Safari -> camera -> still image -> Flask on the Mac -> vision/ modules ->
 | GET    | `/`             | The camera page |
 | GET    | `/health`       | `{"status": "ok", "loaded": [...]}` |
 | POST   | `/api/detect`   | Image -> YOLO -> every detected object with LEFT/CENTER/RIGHT (environmental awareness) |
+| POST   | `/api/detect/reset` | Forget one awareness session's track IDs (`session_id` field) |
 | POST   | `/api/barcode`  | Image -> barcodes -> FDA lookup + local UPC registry -> reconciled result |
 | POST   | `/api/identify` | Image -> YOLO bottle -> crop -> EasyOCR -> ProductMatcher |
 
 All POST endpoints take a multipart form with one file field named `image`
 (JPEG or PNG, at most 10 MB). Errors are JSON: `{"error": {"code", "message"}}`.
+
+### Tracking IDs on `/api/detect`
+
+Send two extra form fields to have objects tracked between requests:
+`session_id` (8-64 letters, digits, `-` or `_`; a new random value each time
+awareness starts) and `frame` (a number that only goes up). Each detection then
+carries `track_id`, a temporary number for that session, or `null` when the
+object could not be associated reliably. Without `session_id` every `track_id`
+is `null` and `"tracking"` is `"off"`. A late or repeated frame number returns
+`"tracking": "stale"` with no IDs. See `vision/tracking.py`.
 
 ## Use it on this Mac (Mac webcam)
 

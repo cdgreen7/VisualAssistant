@@ -117,6 +117,8 @@ function updateButtons() {
   $("toggle-camera").disabled = busy;
   $("start-awareness").disabled = busy || awareness.on;
   $("stop-awareness").disabled = !awareness.on;
+  $("start-awareness").hidden = awareness.on;      // one awareness button is shown at a time
+  $("stop-awareness").hidden = !awareness.on;
 }
 
 // ---------- capture and upload
@@ -153,12 +155,14 @@ async function send(path, label, render) {
       throw new Error(body && body.error ? body.error.message : `Server error (${response.status})`);
     }
     render(body);
+    result.scrollIntoView({ behavior: "smooth", block: "start" });   // results sit below the camera
     log(`${label}: done in ${((performance.now() - started) / 1000).toFixed(1)} s`);
   } catch (error) {
     const message = error.name === "AbortError" ? "The server took too long to answer." :
       error instanceof TypeError ? "Could not reach the server. Check that it is running and on the same network." :
       error.message;
     showMessage(message, "bad");
+    result.scrollIntoView({ behavior: "smooth", block: "start" });
     log(`${label} failed: ${message}`);
   } finally {
     clearTimeout(timer);
@@ -174,8 +178,25 @@ const AWARENESS_INTERVAL_MS = 1500;   // pause between one answer and the next c
 const AWARENESS_TIMEOUT_MS = 15000;
 const AWARENESS_MAX_SIDE = 640;       // YOLO works at 640 px, so larger uploads add nothing
 const AWARENESS_MAX_FAILURES = 5;
-const awareness = { on: false, controller: null, timer: null, failures: 0, last: null };
+const SCENE_MAX_ITEMS = 4;            // objects listed in the scene panel before "+N more"
+const PREVIEW_MIRRORED = false;       // the preview is shown as the camera sees it, front camera included
+const awareness = { on: false, controller: null, timer: null, failures: 0, last: null, session: null, frame: 0 };
 const overlay = $("overlay");
+
+// A fresh random id per awareness run: the server keeps track IDs per session, so a
+// restart begins again at #1 and two phones never share IDs.
+function newSessionId() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function forgetSession(sessionId) {
+  if (!sessionId) return;
+  const form = new FormData();
+  form.append("session_id", sessionId);
+  fetch("/api/detect/reset", { method: "POST", body: form, keepalive: true }).catch(() => {});
+}
 
 // ---------- voice announcements (speech runs in this browser; see announcer.js)
 
@@ -191,8 +212,8 @@ function setVoiceState(text, tone) {
 }
 
 function updateVoiceButtons() {
-  $("enable-voice").disabled = speaker.enabled;
-  $("disable-voice").disabled = !speaker.enabled;
+  $("enable-voice").disabled = $("enable-voice").hidden = speaker.enabled;
+  $("disable-voice").disabled = $("disable-voice").hidden = !speaker.enabled;
 }
 
 // Called from a tap, which is what lets iOS Safari play speech afterwards.
@@ -237,7 +258,14 @@ async function startAwareness() {
   if (!stream) { setAwarenessState("camera unavailable", "bad"); return; }
   awareness.on = true;
   awareness.failures = 0;
+  awareness.session = newSessionId();
+  awareness.frame = 0;
   announcements.reset();
+  $("tools").hidden = true;                     // scans are off during awareness: free the preview
+  $("more-tools").setAttribute("aria-expanded", "false");
+  $("scene").hidden = false;
+  renderScene([]);
+  $("scene-summary").textContent = "Looking…";
   setAwarenessState("starting…");
   log("Awareness started");
   updateButtons();
@@ -250,12 +278,15 @@ function stopAwareness(reason) {
   clearTimeout(awareness.timer);
   if (awareness.controller) awareness.controller.abort();   // cancel the request in flight
   awareness.controller = awareness.last = null;
+  forgetSession(awareness.session);                         // drop the server's track IDs for this run
+  awareness.session = null;
   speaker.cancel();                                         // stop talking, nothing left queued
   announcements.reset();
   if (speaker.enabled) $("voice-last").textContent = "";
   drawOverlay();                                            // clear stale boxes
-  $("awareness-list").replaceChildren();
-  $("awareness-latency").textContent = "";
+  $("scene").hidden = true;
+  renderScene([]);
+  $("awareness-latency").textContent = "Awareness is off.";
   setAwarenessState(reason ? "off – " + reason : "off", reason && reason !== "stopped" ? "warn" : "");
   log("Awareness stopped" + (reason ? ": " + reason : ""));
   updateButtons();
@@ -271,6 +302,8 @@ async function awarenessTick() {
   try {
     const form = new FormData();
     form.append("image", await captureBlob(AWARENESS_MAX_SIDE, 0.7), "frame.jpg");
+    form.append("session_id", awareness.session);
+    form.append("frame", String(++awareness.frame));
     const response = await fetch("/api/detect", { method: "POST", body: form, signal: controller.signal });
     let body = null;
     try { body = await response.json(); } catch (error) { /* not JSON */ }
@@ -301,7 +334,8 @@ function awarenessFailed(error, timedOut) {
     error.code === "invalid_image" ? "frame was not a valid image" : error.message;
   awareness.last = null;
   drawOverlay();
-  $("awareness-list").replaceChildren();
+  renderScene([]);
+  $("scene-summary").textContent = "";
   if (error.code === "initialization_failed" || awareness.failures >= AWARENESS_MAX_FAILURES) {
     stopAwareness(message);
   } else {
@@ -310,24 +344,26 @@ function awarenessFailed(error, timedOut) {
 }
 
 function renderAwareness(body, totalMs) {
-  setAwarenessState(body.detection_count ? `${body.detection_count} object${body.detection_count === 1 ? "" : "s"}` : "no objects detected", "good");
-  $("awareness-latency").textContent = `inference ${body.inference_time_ms} ms · round trip ${totalMs} ms · ${body.image_width}×${body.image_height}`;
-  $("awareness-list").replaceChildren(...body.detections.map((d) => {
-    const item = el("li");
-    item.append(el("span", d.class_name, "name"), el("span", Math.round(d.confidence * 100) + "%", "percent"), pill(d.position));
-    return item;
-  }));
+  setAwarenessState("awareness on", "good");
+  $("awareness-latency").textContent = `Awareness: inference ${body.inference_time_ms} ms · round trip ${totalMs} ms · ` +
+    `${body.image_width}×${body.image_height} frame` + (body.tracking === "ok" ? "" : ` · tracking ${body.tracking || "off"}`);
+  renderScene(body.detections);
   drawOverlay();
   announce(body.detections);
 }
 
-// Where the video picture sits inside its box. The preview uses object-fit: cover, so the
-// picture is scaled to fill the box and cropped equally on the overflowing sides.
-function coverTransform(boxWidth, boxHeight, imageWidth, imageHeight) {
-  const scale = Math.max(boxWidth / imageWidth, boxHeight / imageHeight);
-  return { scale, dx: (boxWidth - imageWidth * scale) / 2, dy: (boxHeight - imageHeight * scale) / 2 };
+// The compact panel at the bottom-left of the camera: who/what is where.
+function renderScene(detections) {
+  const maxItems = $("stage").clientHeight < 420 ? 2 : SCENE_MAX_ITEMS;   // less room in landscape
+  const scene = View.sceneLines(detections, maxItems);
+  const items = scene.items.map((text) => el("li", text));
+  if (scene.more) items.push(el("li", scene.more, "more"));
+  $("awareness-list").replaceChildren(...items);
+  $("scene-summary").textContent = scene.summary;
 }
 
+// Boxes are in the uploaded frame's pixels; View.mapBox places them on the preview,
+// which is scaled and cropped by object-fit: cover (see view.js).
 function drawOverlay() {
   const ratio = window.devicePixelRatio || 1;
   const width = overlay.clientWidth, height = overlay.clientHeight;
@@ -338,22 +374,22 @@ function drawOverlay() {
   context.clearRect(0, 0, width, height);
   const body = awareness.last;
   if (!awareness.on || !body || !width) return;
-  // The preview is never mirrored (front camera included), so image x maps straight to screen x.
-  const t = coverTransform(width, height, body.image_width, body.image_height);
-  context.lineWidth = 2;
-  context.font = "600 13px -apple-system, sans-serif";
+  // After a rotation the last result has the old orientation: wait for the next one.
+  if (!View.sameShape(body.image_width, body.image_height, video.videoWidth, video.videoHeight)) return;
+  context.lineWidth = 3;
+  context.font = "700 14px -apple-system, sans-serif";
   context.textBaseline = "top";
   for (const d of body.detections) {
-    const [x1, y1, x2, y2] = d.bounding_box;
-    const x = x1 * t.scale + t.dx, y = y1 * t.scale + t.dy;
+    const box = View.mapBox(d.bounding_box, body.image_width, body.image_height, width, height, PREVIEW_MIRRORED);
     context.strokeStyle = "#ffd60a";
-    context.strokeRect(x, y, (x2 - x1) * t.scale, (y2 - y1) * t.scale);
-    const label = `${d.class_name} ${Math.round(d.confidence * 100)}%`;
-    const labelX = Math.max(0, x), labelY = Math.max(0, y);
-    context.fillStyle = "rgba(0, 0, 0, 0.75)";
-    context.fillRect(labelX, labelY, context.measureText(label).width + 8, 18);
+    context.strokeRect(box.x, box.y, box.width, box.height);
+    const label = `${View.objectLabel(d)} ${Math.round(d.confidence * 100)}%`;
+    const labelWidth = context.measureText(label).width + 10;
+    const labelX = Math.min(Math.max(0, box.x), Math.max(0, width - labelWidth)), labelY = Math.max(0, box.y);
+    context.fillStyle = "rgba(0, 0, 0, 0.78)";
+    context.fillRect(labelX, labelY, labelWidth, 20);
     context.fillStyle = "#ffd60a";
-    context.fillText(label, labelX + 4, labelY + 3);
+    context.fillText(label, labelX + 5, labelY + 3);
   }
 }
 
@@ -436,11 +472,12 @@ function startFrontLabelScan(barcodeValue) {
   show(card);
   log("Front label scan started for barcode " + barcodeValue);
   if (!stream) startCamera();
-  $("video").scrollIntoView({ behavior: "smooth", block: "start" });
+  $("stage").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function captureFrontLabel() {
   if (!stream) { startCamera(); return; }
+  if (awareness.on) stopAwareness("stopped");   // OCR does not run during awareness
   send("/api/identify", "Identification", renderIdentify);
 }
 
@@ -513,7 +550,16 @@ $("disable-voice").addEventListener("click", disableVoice);
 $("voice-volume").addEventListener("input", (event) => { speaker.volume = Number(event.target.value); });
 $("start-awareness").addEventListener("click", startAwareness);
 $("stop-awareness").addEventListener("click", () => stopAwareness("stopped"));
+$("more-tools").addEventListener("click", () => {
+  const open = $("tools").hidden;
+  $("tools").hidden = !open;
+  $("more-tools").setAttribute("aria-expanded", String(open));
+});
+// Keep the boxes aligned when the preview changes size or the phone is rotated
 window.addEventListener("resize", drawOverlay);
+window.addEventListener("orientationchange", drawOverlay);
+video.addEventListener("resize", drawOverlay);
+if (window.ResizeObserver) new ResizeObserver(drawOverlay).observe($("stage"));
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) return;
   speaker.cancel();
