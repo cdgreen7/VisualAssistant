@@ -8,3 +8,5 @@ ultralytics
 easyocr
 zxing-cpp
 flask
+
+Pillow

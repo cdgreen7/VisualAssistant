@@ -51,6 +51,7 @@ class VisionServices:
         self._loaders = dict(DEFAULT_LOADERS, **(loaders or {}))
         self._loaded = {}
         self._load_lock = threading.Lock()
+        self._ocr_lock = threading.Lock()
         self._work_lock = threading.Lock()  # YOLO/EasyOCR run one request at a time
         self._busy_timeout = busy_timeout
         self._detect_busy_timeout = detect_busy_timeout  # awareness frames give up quickly instead of queueing
@@ -58,6 +59,8 @@ class VisionServices:
 
     def _get(self, name):
         """The named component, loading it once. A failed load is retried next time."""
+        if name in self._loaded:
+            return self._loaded[name]
         with self._load_lock:
             if name not in self._loaded:
                 try:
@@ -124,9 +127,45 @@ class VisionServices:
         """
         from vision.identification import identify_detection
         detector, recognizer, matcher = self._get("detector"), self._get("recognizer"), self._get("matcher")
-        lock = self._working()
+        detections, _ = self.detect(image)
+        if not self._ocr_lock.acquire(timeout=self._busy_timeout):
+            raise ServiceError(503, "busy", "Another label scan is running.")
         try:
-            detections = detector.get_detections(detector.detect(image))
             return detections, identify_detection(image, detections, recognizer, matcher)
         finally:
-            lock.release()
+            self._ocr_lock.release()
+
+    def identify_crop(self, image):
+        """A Phase 4A crop is already localized. Reuse the existing helper with
+        its whole-image ROI; never infer a second bottle inside the crop.
+        """
+        from vision.identification import identify_detection
+        from web.medicine_result import explain
+        if not self._ocr_lock.acquire(blocking=False):
+            raise ServiceError(409, "identification_busy", "Another label scan is running. Rescan when it finishes.")
+        started = time.perf_counter()
+        times = {"ocr_ms": 0, "matcher_ms": 0}
+        class Timed:
+            def __init__(self, component, method, key):
+                self.component, self.method, self.key = component, method, key
+            def __getattr__(self, method):
+                def call(*args):
+                    before = time.perf_counter()
+                    try:
+                        return getattr(self.component, self.method)(*args)
+                    finally:
+                        times[self.key] = round((time.perf_counter()-before)*1000, 2)
+                return call
+        try:
+            recognizer, matcher = self._get("recognizer"), self._get("matcher")
+            height, width = image.shape[:2]
+            roi = {"class_name": "bottle", "confidence": 1.0, "box": (0, 0, width, height)}
+            _, ocr, matched = identify_detection(image, [roi],
+                Timed(recognizer, "read", "ocr_ms"), Timed(matcher, "match", "matcher_ms"))
+            body = explain(ocr, matched)
+            body["ocr"] = [dict(text=r["text"], confidence=float(r["confidence"])) for r in ocr]
+            times["total_ms"] = round((time.perf_counter()-started)*1000, 2)
+            body["timing"] = times
+            return body
+        finally:
+            self._ocr_lock.release()

@@ -91,3 +91,18 @@ test("scene panel is limited and summarises the rest", () => {
 test("scene panel shows objects without a tracking id", () => {
   assert.deepEqual(sceneLines([{ class_name: "chair", position: "RIGHT", track_id: null }], 4).items, ["Chair — Right"]);
 });
+
+test('iPhone viewport cover geometry stays centered without margins across rotation and mirroring', () => {
+  for (const [vw,vh] of [[320,568],[375,667],[390,844],[393,852],[430,932],[844,390]]) {
+    for (const [iw,ih] of [[1080,1920],[1920,1080]]) {
+      const t=coverTransform(vw,vh,iw,ih);
+      assert.ok(iw*t.scale>=vw-1e-6 && ih*t.scale>=vh-1e-6);
+      assert.ok(t.dx<=1e-6 && t.dy<=1e-6);
+      for (const mirrored of [false,true]) {
+        const box=mapBox([iw/4,ih/4,iw*3/4,ih*3/4],iw,ih,vw,vh,mirrored);
+        assert.ok(Math.abs(box.x+box.width/2-vw/2)<1e-6);
+        assert.ok(Math.abs(box.y+box.height/2-vh/2)<1e-6);
+      }
+    }
+  }
+});

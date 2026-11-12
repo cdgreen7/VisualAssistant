@@ -1,5 +1,9 @@
 import cv2
-from vision.camera import open_camera
+try:
+    from vision.camera import open_camera
+except Exception:
+    # Fallback to local camera module path if package import fails during development
+    from camera import open_camera
 camera = open_camera()
 while True:
     success, frame = camera.read()

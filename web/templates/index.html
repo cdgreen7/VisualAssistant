@@ -3,78 +3,160 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#000000">
-  <title>Visual Assistant</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta name="theme-color" content="#07080c">
+  <title>Visual AI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=app_build) }}">
 </head>
 <body>
-  <div id="stage" class="stage">
+  <svg hidden aria-hidden="true">
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.2l1.2-1.8h6.2L16.3 6h1.2A2.5 2.5 0 0 1 20 8.5v8A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z"/><circle cx="12" cy="12.5" r="3.4"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M11 3.5l1.7 4.8 4.8 1.7-4.8 1.7L11 16.5l-1.7-4.8L4.5 10l4.8-1.7z"/><path d="M18.5 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></symbol>
+    <symbol id="i-voice" viewBox="0 0 24 24"><path d="M4.5 9.5v5h3l4.5 3.5v-12L7.5 9.5z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11"/></symbol>
+    <symbol id="i-flip" viewBox="0 0 24 24"><path d="M5 9a7.5 7.5 0 0 1 13-2.5L20 8.5M20 4v4.5h-4.5M19 15a7.5 7.5 0 0 1-13 2.5L4 15.5M4 20v-4.5h4.5"/></symbol>
+    <symbol id="i-pill" viewBox="0 0 24 24"><rect x="3.5" y="8.5" width="17" height="7" rx="3.5" transform="rotate(-45 12 12)"/><path d="M9.5 9.5l5 5"/></symbol>
+    <symbol id="i-barcode" viewBox="0 0 24 24"><path d="M4 6v12M7.5 6v12M10.5 6v12M14 6v12M16.5 6v12M20 6v12"/></symbol>
+    <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3.5v8"/><path d="M7 6.5a7.5 7.5 0 1 0 10 0"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  </svg>
+
+  <div id="stage" class="app is-off">
     <video id="video" playsinline muted autoplay></video>
     <canvas id="overlay" class="overlay" aria-hidden="true"></canvas>
-    <p id="camera-message" class="camera-message">Camera is off.</p>
-    <div id="busy" class="busy" hidden><span class="spinner"></span><span id="busy-text">Working…</span></div>
 
     <header class="top-bar">
-      <h1>Visual Assistant</h1>
-      <div class="pills">
-        <span id="server-state" class="pill">checking server…</span>
-        <span id="awareness-state" class="pill">off</span>
-        <span id="voice-state" class="pill">voice off</span>
-      </div>
+      <h1>Visual AI</h1>
+      <p id="status-chip" class="chip" role="status"><span class="dot" aria-hidden="true"></span><span id="status-text">Camera off</span></p>
     </header>
 
-    <div class="bottom">
-      <div id="scene" class="scene panel" hidden>
+    <div id="busy" class="busy" role="status" hidden><span class="spinner" aria-hidden="true"></span><span id="busy-text">Working…</span></div>
+
+    <section id="welcome" class="welcome" aria-labelledby="welcome-title">
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-spark"/></svg>
+      <h2 id="welcome-title">Visual AI</h2>
+      <p class="tagline">Your surroundings, understood.</p>
+      <p class="off-note">The camera is off.</p>
+      <button id="welcome-start" type="button" class="cta">Start camera</button>
+      <p id="camera-message" class="camera-message" role="alert" hidden></p>
+    </section>
+
+    <div class="hud">
+      <details id="medicine-panel" class="medicine-panel glass" hidden>
+        <summary id="medicine-status" aria-live="polite">Automatic medicine scan off</summary>
+        <div id="medicine-packet" hidden>
+          <img id="medicine-preview" alt="Unidentified container crop">
+          <p id="medicine-details" class="small"></p>
+          <div id="medicine-evidence"></div>
+        </div>
+        <div class="medicine-actions">
+          <button id="medicine-rescan" type="button">Rescan label</button>
+          <button id="medicine-discard" type="button">Dismiss</button>
+        </div>
+      </details>
+
+      <div id="scene" class="scene glass" hidden>
         <h2>Scene</h2>
         <ul id="awareness-list"></ul>
         <p id="scene-summary" class="scene-summary"></p>
       </div>
 
-      <div id="tools" class="tools panel" hidden>
-        <button id="scan-barcode" type="button" disabled>Capture barcode</button>
-        <button id="identify" type="button" disabled>Identify medicine</button>
-        <button id="toggle-camera" type="button">Start camera</button>
-        <label class="visually-hidden" for="camera-select">Camera</label>
-        <select id="camera-select" hidden></select>
-      </div>
-
-      <div class="controls" role="group" aria-label="Main controls">
-        <button id="start-awareness" type="button" class="primary">Start awareness</button>
-        <button id="stop-awareness" type="button" class="primary active" disabled hidden>Stop awareness</button>
-        <button id="enable-voice" type="button">Enable voice</button>
-        <button id="disable-voice" type="button" disabled hidden class="active">Disable voice</button>
-        <button id="flip-camera" type="button" class="compact" disabled>Flip</button>
-        <button id="more-tools" type="button" class="compact" aria-expanded="false" aria-controls="tools">Scan</button>
-      </div>
+      <section id="ai-panel" class="ai-card glass" hidden aria-live="polite" aria-busy="false" aria-labelledby="ai-title">
+        <header>
+          <h2 id="ai-title"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-spark"/></svg>AI description</h2>
+          <span id="ai-spinner" class="spinner" aria-hidden="true" hidden></span>
+        </header>
+        <p id="ai-text"></p>
+        <p class="fine">AI-generated. May be inaccurate. Product identity is not verified.
+          If Safari stays silent, tap Read aloud.</p>
+        <div class="ai-actions">
+          <button id="ai-read" type="button" disabled>Read aloud</button>
+          <button id="ai-stop" type="button">Stop</button>
+          <button id="ai-close" type="button">Close</button>
+        </div>
+      </section>
     </div>
+
+    <nav class="dock" aria-label="Main controls">
+      <button id="awareness-toggle" type="button" aria-pressed="false" aria-label="Start awareness">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-camera"/></svg><span>Camera</span></button>
+      <button id="ask-ai" type="button" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-spark"/></svg><span>Ask AI</span></button>
+      <button id="more-tools" type="button" aria-expanded="false" aria-controls="tools" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-more"/></svg><span>More</span></button>
+    </nav>
+
+    <section id="result-sheet" class="sheet result-sheet" aria-labelledby="result-title" hidden>
+      <header class="sheet-head">
+        <h2 id="result-title">Result</h2>
+        <button id="result-close" type="button" class="icon-button" aria-label="Close result">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-close"/></svg></button>
+      </header>
+      <div id="result" class="sheet-body" aria-live="polite"></div>
+    </section>
+
+    <div id="sheet-backdrop" class="backdrop" hidden></div>
+    <section id="tools" class="sheet" role="dialog" aria-modal="true" aria-labelledby="tools-title" hidden>
+      <header class="sheet-head">
+        <h2 id="tools-title">More</h2>
+        <button id="tools-close" type="button" class="icon-button" aria-label="Close menu">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-close"/></svg></button>
+      </header>
+      <div class="sheet-body">
+        <div class="tiles">
+          <button id="voice-toggle" type="button" class="tile" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-voice"/></svg>
+            <span class="tile-label">Voice</span><span id="voice-toggle-state" class="tile-hint">Off</span></button>
+          <button id="flip-camera" type="button" class="tile" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-flip"/></svg>
+            <span class="tile-label">Switch camera</span><span id="flip-hint" class="tile-hint">Start the camera first</span></button>
+          <button id="identify" type="button" class="tile" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pill"/></svg>
+            <span class="tile-label">Identify medicine</span><span id="identify-hint" class="tile-hint">Start the camera first</span></button>
+          <button id="scan-barcode" type="button" class="tile" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-barcode"/></svg>
+            <span class="tile-label">Capture barcode</span><span id="barcode-hint" class="tile-hint">Start the camera first</span></button>
+        </div>
+
+        <button id="toggle-camera" type="button" class="row-button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-power"/></svg><span id="toggle-camera-label">Turn camera on</span></button>
+
+        <div class="settings">
+          <label class="setting" for="camera-select" id="camera-select-row" hidden>Camera
+            <select id="camera-select"></select></label>
+          <label class="setting" for="voice-volume">Voice volume
+            <input id="voice-volume" type="range" min="0" max="1" step="0.1" value="1"></label>
+          <label class="setting check"><input id="qwen-label-assist" type="checkbox">
+            Qwen second reader (slow; unverified)</label>
+          <label class="setting check"><input id="auto-medicine" type="checkbox">
+            Automatic medicine scanning (experimental)</label>
+        </div>
+
+        <p id="app-build" class="fine" data-build="{{ app_build }}">Build {{ app_build }} · JavaScript not confirmed</p>
+        <p id="camera-layout" class="fine"></p>
+        <details class="diagnostics">
+          <summary>Status and activity</summary>
+          <p class="pills"><span id="server-state" class="pill">checking server…</span>
+            <span id="awareness-state" class="pill">off</span>
+            <span id="voice-state" class="pill">voice off</span></p>
+          <p id="awareness-latency" class="fine">Awareness is off.</p>
+          <p id="voice-last" class="fine"></p>
+          <ol id="log" class="log"></ol>
+        </details>
+        <p class="fine">Development prototype. Results describe what the label or barcode appears to say;
+          they are not medical or dosage advice.</p>
+      </div>
+    </section>
   </div>
 
-  <main>
-    <section aria-live="polite">
-      <h2>Result</h2>
-      <div id="result"><p class="muted">Tap Scan, then capture a barcode or identify a medicine.</p></div>
-    </section>
-
-    <section>
-      <h2>Status</h2>
-      <p class="status-line"><span id="awareness-latency" class="muted small">Awareness is off.</span></p>
-      <p class="status-line"><span id="voice-last" class="muted small"></span></p>
-      <label class="volume" for="voice-volume">Voice volume
-        <input id="voice-volume" type="range" min="0" max="1" step="0.1" value="1"></label>
-    </section>
-
-    <section>
-      <h2>Activity</h2>
-      <ol id="log" class="log"></ol>
-    </section>
-
-    <p class="muted small">Development prototype. Results describe what the label or barcode appears to say;
-      they are not medical or dosage advice.</p>
-  </main>
-
   <canvas id="canvas" hidden></canvas>
-  <script src="{{ url_for('static', filename='announcer.js') }}"></script>
-  <script src="{{ url_for('static', filename='view.js') }}"></script>
-  <script src="{{ url_for('static', filename='app.js') }}"></script>
+  <script src="{{ url_for('static', filename='announcer.js', v=app_build) }}"></script>
+  <script src="{{ url_for('static', filename='view.js', v=app_build) }}"></script>
+  <script src="{{ url_for('static', filename='ui.js', v=app_build) }}"></script>
+  <script src="{{ url_for('static', filename='ask-ai.js', v=app_build) }}"></script>
+  <script src="{{ url_for('static', filename='medicine-candidates.js', v=app_build) }}"></script>
+  <script src="{{ url_for('static', filename='medicine-capture.js', v=app_build) }}"></script>
+  <script src="{{ url_for('static', filename='medicine-scanner.js', v=app_build) }}"></script>
+  <script src="{{ url_for('static', filename='medicine-identification.js', v=app_build) }}"></script>
+  <script src="{{ url_for('static', filename='app.js', v=app_build) }}"></script>
 </body>
 </html>

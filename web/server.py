@@ -8,17 +8,21 @@ Usage (from the repo root):
 See web/README.md for the HTTPS certificate setup an iPhone needs.
 The server never runs in debug mode and only ever reads the uploaded image.
 """
+import hashlib
+from pathlib import Path
 import argparse
+import io
 import sys
 
 import cv2
 import numpy as np
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, Request, jsonify, render_template, request
 from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 
 from vision.barcode_scan import NO_BARCODE
 from vision.products.barcode_lookup import conflicting
 from web import serialize
+from web.qwen_scene import QwenSceneService, prepare_image
 from web.services import ServiceError, VisionServices
 from web.track_sessions import OFF, SESSION_ID, TrackSessions
 
@@ -55,11 +59,39 @@ def read_tracking(form):
     return session_id, int(frame)
 
 
-def create_app(services=None, max_upload_bytes=MAX_UPLOAD_BYTES, track_sessions=None):
+class CameraRequest(Request):
+    def _get_file_stream(self, total_content_length, content_type, filename=None, content_length=None):
+        # Werkzeug normally spools larger uploads to disk. Ask AI stays in RAM.
+        if self.path in ("/api/scene/describe", "/api/medicine/identify-crop"):
+            return io.BytesIO()
+        return super()._get_file_stream(total_content_length, content_type, filename, content_length)
+
+
+def create_app(services=None, max_upload_bytes=MAX_UPLOAD_BYTES, track_sessions=None, scene_service=None, label_reader=None, research_service=None):
     app = Flask(__name__)
+    root = Path(__file__).parent
+    # One startup fingerprint for backend, template and every frontend module.
+    sources = sorted(p for p in root.rglob('*') if p.suffix in {'.py', '.js', '.css', '.html'})
+    build = '4b-debug-' + hashlib.sha256(b''.join(p.read_bytes() for p in sources)).hexdigest()[:10]
+    app.config['APP_BUILD'] = build
+    app.context_processor(lambda: {'app_build': build})
+    app.request_class = CameraRequest
     app.config["MAX_CONTENT_LENGTH"] = max_upload_bytes
     services = services or VisionServices()
     track_sessions = track_sessions or TrackSessions()
+
+    scene_service = scene_service or QwenSceneService()
+    from web.qwen_label import QwenLabelReader
+    label_reader = label_reader or QwenLabelReader()
+
+    from web.product_research import ProductResearch
+    research_service = research_service or ProductResearch()
+
+    @app.post("/api/products/research")
+    def product_research():
+        if request.content_length and request.content_length > 32768:
+            raise ServiceError(413, "evidence_too_large", "Research evidence must be under 32 KB.")
+        return jsonify(research_service.research(request.get_json(silent=True)))
 
     def error(http_status, code, message):
         return jsonify({"error": {"code": code, "message": message}}), http_status
@@ -83,7 +115,8 @@ def create_app(services=None, max_upload_bytes=MAX_UPLOAD_BYTES, track_sessions=
 
     @app.after_request
     def no_store(response):
-        if request.path.startswith("/api/"):
+        response.headers["X-Visual-Assistant-Build"] = build
+        if request.path == "/" or request.path == "/health" or request.path.startswith(("/api/", "/static/")):
             response.headers["Cache-Control"] = "no-store"
         return response
 
@@ -93,7 +126,12 @@ def create_app(services=None, max_upload_bytes=MAX_UPLOAD_BYTES, track_sessions=
 
     @app.get("/health")
     def health():
-        return jsonify({"status": "ok", "loaded": services.loaded(), "registry_error": services.registry_error})
+        return jsonify({"status": "ok", "build": build, "loaded": services.loaded(), "registry_error": services.registry_error})
+
+    @app.post("/api/scene/describe")
+    def describe_scene():
+        image = prepare_image(request.files.get("image"))
+        return jsonify(scene_service.describe(image))
 
     @app.post("/api/detect")
     def detect():
@@ -131,6 +169,34 @@ def create_app(services=None, max_upload_bytes=MAX_UPLOAD_BYTES, track_sessions=
             "barcodes": [serialize.barcode_identification(i) for i in found],
             "barcodes_conflict": conflicting([i.fda for i in found]),
         })
+
+    @app.post("/api/medicine/identify-crop")
+    def identify_medicine_crop():
+        session_id = request.form.get("session_id", "")
+        capture_id = request.form.get("capture_id", "")
+        if not SESSION_ID.fullmatch(session_id) or not SESSION_ID.fullmatch(capture_id):
+            raise ServiceError(400, "invalid_capture", "A valid session_id and capture_id are required.")
+        # Validate JPEG/PNG with the same in-memory validator, without its scene
+        # resizing: OCR receives every uploaded pixel.
+        from web.medicine_upload import read_crop
+        image = read_crop(request.files.get("image"))
+        app.logger.warning("medicine crop accepted: %dx%d", image.shape[1], image.shape[0])
+        body = services.identify_crop(image)
+        app.logger.warning("medicine OCR/matcher complete: %s; timing=%s", body["match"]["status"], body["timing"])
+        body["qwen"] = {"enabled": False, "used_for_matching": False}
+        if request.form.get("assist") == "true":
+            import time
+            started = time.perf_counter()
+            try:
+                body["qwen"] = dict(label_reader.read(image, body["ocr"]), enabled=True)
+            except ServiceError as failure:
+                body["qwen"] = {"enabled": True, "error": failure.message, "used_for_matching": False}
+            body["timing"]["qwen_ms"] = round((time.perf_counter()-started)*1000, 2)
+        else:
+            body["timing"]["qwen_ms"] = 0
+        body["timing"]["total_ms"] += body["timing"]["qwen_ms"]
+        body.update(session_id=session_id, capture_id=capture_id)
+        return jsonify(body)
 
     @app.post("/api/identify")
     def identify():

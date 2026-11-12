@@ -10,6 +10,7 @@ let stream = null;
 let facing = "environment";   // rear camera first
 let busy = false;
 let fallbackBarcode = null;   // barcode value kept on screen while the front label is scanned instead
+let serverOk = null;          // null until /health answers
 
 // ---------- small DOM helpers (textContent only: server text is never parsed as HTML)
 
@@ -37,7 +38,46 @@ function log(message) {
   $("log").prepend(item);
 }
 
-function show(...nodes) { result.replaceChildren(...nodes); }
+// Scan results appear in a sheet over the camera, never in the page below it.
+function show(...nodes) {
+  result.replaceChildren(...nodes);
+  sheets.open("result-sheet", document.activeElement);
+}
+
+// ---------- sheets: the More menu and the result sheet (one open at a time; see ui.js)
+
+const sheets = new UI.Sheets({
+  show(name) {
+    $(name).hidden = false;
+    if (name === "tools") {
+      $("sheet-backdrop").hidden = false;
+      $("more-tools").setAttribute("aria-expanded", "true");
+    }
+  },
+  hide(name) {
+    $(name).hidden = true;
+    if (name === "tools") {
+      $("sheet-backdrop").hidden = true;
+      $("more-tools").setAttribute("aria-expanded", "false");
+    }
+  },
+  focusFirst(name) {
+    const first = $(name).querySelector("button:not([disabled])");
+    if (first) first.focus({ preventScroll: true });
+  },
+  focus(element) { if (element && element.isConnected && element.focus) element.focus({ preventScroll: true }); },
+});
+
+// Keep Tab inside the open modal menu.
+function trapFocus(event) {
+  if (event.key !== "Tab" || sheets.current !== "tools") return;
+  const items = [...$("tools").querySelectorAll("button:not([disabled]), select:not([hidden]), input, summary")]
+    .filter((node) => node.offsetParent !== null);
+  if (!items.length) return;
+  const first = items[0], last = items[items.length - 1];
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+}
 function showMessage(text, tone) { show(el("p", text, tone === "bad" ? "" : "muted")); }
 
 // ---------- camera
@@ -57,13 +97,13 @@ function cameraError(error) {
 }
 
 function stopCamera() {
+  askAI.close();
   stopAwareness("camera stopped");
   if (stream) stream.getTracks().forEach((track) => track.stop());
   stream = null;
   video.srcObject = null;
-  $("camera-message").hidden = false;
-  $("camera-message").textContent = "Camera is off.";
-  $("toggle-camera").textContent = "Start camera";
+  $("camera-message").hidden = true;       // the welcome screen says the camera is off
+  $("camera-message").textContent = "";
   updateButtons();
 }
 
@@ -79,6 +119,7 @@ async function startCamera(deviceId) {
   } catch (error) {
     const message = cameraError(error);
     $("camera-message").textContent = message;
+    $("camera-message").hidden = false;
     log("Camera error: " + message);
     updateButtons();
     return;
@@ -86,7 +127,6 @@ async function startCamera(deviceId) {
   video.srcObject = stream;
   await video.play().catch(() => {});
   $("camera-message").hidden = true;
-  $("toggle-camera").textContent = "Stop camera";
   log("Camera started");
   updateButtons();
   listCameras();
@@ -103,22 +143,43 @@ async function listCameras() {
       option.selected = camera.deviceId === current;
       return option;
     }));
-    select.hidden = cameras.length < 2;
+    $("camera-select-row").hidden = cameras.length < 2;
   } catch (error) {
-    select.hidden = true;
+    $("camera-select-row").hidden = true;
   }
 }
 
+// Everything the controls show is derived from this one description of the app (ui.js).
+function appState() {
+  return {
+    cameraOn: Boolean(stream), awarenessOn: awareness.on, busy, askBusy: askAI.busy,
+    voiceOn: speaker.enabled, voiceSupported: speaker.supported, serverOk,
+    awarenessText: $("awareness-state").textContent, awarenessTone: $("awareness-state").className.replace("pill", "").trim(),
+  };
+}
+
 function updateButtons() {
-  const on = Boolean(stream);
-  // OCR and barcode scans are not run while awareness is on
-  $("scan-barcode").disabled = $("identify").disabled = !on || busy || awareness.on;
-  $("flip-camera").disabled = !on || busy;
-  $("toggle-camera").disabled = busy;
-  $("start-awareness").disabled = busy || awareness.on;
-  $("stop-awareness").disabled = !awareness.on;
-  $("start-awareness").hidden = awareness.on;      // one awareness button is shown at a time
-  $("stop-awareness").hidden = !awareness.on;
+  const state = appState(), view = UI.controls(state), chip = UI.statusChip(state);
+  $("stage").classList.toggle("is-off", view.welcomeVisible);
+  $("status-text").textContent = chip.text;
+  $("status-chip").className = "chip" + (chip.tone ? " " + chip.tone : "");
+
+  $("awareness-toggle").setAttribute("aria-pressed", String(view.awareness.pressed));
+  $("awareness-toggle").setAttribute("aria-label", view.awareness.ariaLabel);
+  $("awareness-toggle").disabled = view.awareness.disabled;
+  $("ask-ai").disabled = view.askAI.disabled;
+
+  $("voice-toggle").setAttribute("aria-pressed", String(view.voice.pressed));
+  $("voice-toggle").disabled = view.voice.disabled;
+  $("voice-toggle-state").textContent = view.voice.state;
+  $("flip-camera").disabled = view.switchCamera.disabled;
+  $("flip-hint").textContent = view.switchCamera.hint;
+  $("identify").disabled = view.identify.disabled;        // OCR and barcode scans never run during awareness
+  $("identify-hint").textContent = view.identify.hint;
+  $("scan-barcode").disabled = view.barcode.disabled;
+  $("barcode-hint").textContent = view.barcode.hint;
+  $("toggle-camera").disabled = view.cameraPower.disabled;
+  $("toggle-camera-label").textContent = view.cameraPower.label;
 }
 
 // ---------- capture and upload
@@ -155,14 +216,12 @@ async function send(path, label, render) {
       throw new Error(body && body.error ? body.error.message : `Server error (${response.status})`);
     }
     render(body);
-    result.scrollIntoView({ behavior: "smooth", block: "start" });   // results sit below the camera
     log(`${label}: done in ${((performance.now() - started) / 1000).toFixed(1)} s`);
   } catch (error) {
     const message = error.name === "AbortError" ? "The server took too long to answer." :
       error instanceof TypeError ? "Could not reach the server. Check that it is running and on the same network." :
       error.message;
     showMessage(message, "bad");
-    result.scrollIntoView({ behavior: "smooth", block: "start" });
     log(`${label} failed: ${message}`);
   } finally {
     clearTimeout(timer);
@@ -178,7 +237,7 @@ const AWARENESS_INTERVAL_MS = 1500;   // pause between one answer and the next c
 const AWARENESS_TIMEOUT_MS = 15000;
 const AWARENESS_MAX_SIDE = 640;       // YOLO works at 640 px, so larger uploads add nothing
 const AWARENESS_MAX_FAILURES = 5;
-const SCENE_MAX_ITEMS = 4;            // objects listed in the scene panel before "+N more"
+const SCENE_MAX_ITEMS = 3;            // objects listed in the scene panel before "+N more"
 const PREVIEW_MIRRORED = false;       // the preview is shown as the camera sees it, front camera included
 const awareness = { on: false, controller: null, timer: null, failures: 0, last: null, session: null, frame: 0 };
 const overlay = $("overlay");
@@ -211,10 +270,7 @@ function setVoiceState(text, tone) {
   $("voice-state").className = "pill" + (tone ? " " + tone : "");
 }
 
-function updateVoiceButtons() {
-  $("enable-voice").disabled = $("enable-voice").hidden = speaker.enabled;
-  $("disable-voice").disabled = $("disable-voice").hidden = !speaker.enabled;
-}
+function updateVoiceButtons() { updateButtons(); }   // the Voice tile and status chip follow the speaker
 
 // Called from a tap, which is what lets iOS Safari play speech afterwards.
 function enableVoice() {
@@ -241,7 +297,7 @@ function disableVoice() {
 
 // One detection result in, at most one spoken phrase out.
 function announce(detections) {
-  const text = announcements.update(detections, performance.now(), speaker.canSpeak);
+  const text = announcements.update(detections, performance.now(), speaker.canSpeak && !askAI.active);
   if (!text || !speaker.say(text)) return;
   $("voice-last").textContent = "Said: " + text;
   log("Voice: " + text);
@@ -250,6 +306,7 @@ function announce(detections) {
 function setAwarenessState(text, tone) {
   $("awareness-state").textContent = text;
   $("awareness-state").className = "pill" + (tone ? " " + tone : "");
+  updateButtons();                                       // mirror it in the status chip
 }
 
 async function startAwareness() {
@@ -261,8 +318,7 @@ async function startAwareness() {
   awareness.session = newSessionId();
   awareness.frame = 0;
   announcements.reset();
-  $("tools").hidden = true;                     // scans are off during awareness: free the preview
-  $("more-tools").setAttribute("aria-expanded", "false");
+  sheets.close();                               // free the preview
   $("scene").hidden = false;
   renderScene([]);
   $("scene-summary").textContent = "Looking…";
@@ -273,6 +329,7 @@ async function startAwareness() {
 }
 
 function stopAwareness(reason) {
+  medicineScanner.invalidate();
   if (!awareness.on) return;
   awareness.on = false;
   clearTimeout(awareness.timer);
@@ -299,9 +356,21 @@ async function awarenessTick() {
   let timedOut = false;
   const timer = setTimeout(() => { timedOut = true; controller.abort(); }, AWARENESS_TIMEOUT_MS);
   const started = performance.now();
+  const medicineGeneration = medicineScanner.generation;
+  let snapshot = null;
+  let captureError = null;
   try {
     const form = new FormData();
-    form.append("image", await captureBlob(AWARENESS_MAX_SIDE, 0.7), "frame.jpg");
+    if (medicineScanner.enabled && !medicineScanner.busy && !busy && !askAI.busy) {
+      try { snapshot = await medicineCapture.freeze(video); }
+      catch (error) {
+        // Candidate capture must never take down ordinary YOLO awareness.
+        captureError = error;
+        medicineScanner.invalidate();
+        $("medicine-status").textContent = "Capture unavailable: " + error.message;
+      }
+    }
+    form.append("image", snapshot ? snapshot.detectionBlob : await captureBlob(AWARENESS_MAX_SIDE, 0.7), "frame.jpg");
     form.append("session_id", awareness.session);
     form.append("frame", String(++awareness.frame));
     const response = await fetch("/api/detect", { method: "POST", body: form, signal: controller.signal });
@@ -316,6 +385,11 @@ async function awarenessTick() {
     awareness.failures = 0;
     awareness.last = body;
     renderAwareness(body, Math.round(performance.now() - started));
+    if (!captureError && medicineGeneration === medicineScanner.generation) {
+      await medicineScanner.observe({...body, session_id: awareness.session, frame: awareness.frame}, snapshot, performance.now(), !busy && !askAI.busy &&
+        View.sameShape(body.image_width, body.image_height, video.videoWidth, video.videoHeight));
+      if (medicineScanner.packet && !medicineScanner.busy) void medicineIdentification.identify(medicineScanner.packet);
+    }
   } catch (error) {
     if (!awareness.on || controller !== awareness.controller) return;   // stopped: the abort was ours
     awarenessFailed(error, timedOut);
@@ -344,7 +418,7 @@ function awarenessFailed(error, timedOut) {
 }
 
 function renderAwareness(body, totalMs) {
-  setAwarenessState("awareness on", "good");
+  setAwarenessState("Awareness on", "good");
   $("awareness-latency").textContent = `Awareness: inference ${body.inference_time_ms} ms · round trip ${totalMs} ms · ` +
     `${body.image_width}×${body.image_height} frame` + (body.tracking === "ok" ? "" : ` · tracking ${body.tracking || "off"}`);
   renderScene(body.detections);
@@ -409,6 +483,66 @@ function recordText(record) {
   return `${record.brand_name} (${record.labeler_name}) – ${ingredientText(record.ingredients)} [NDC ${record.product_ndc}]`;
 }
 
+// Research is explicit and separate from matching. Only OCR observations and
+// decoded identifiers leave the Mac; camera images and Qwen text are excluded.
+let productResearchBusy = false;
+function productResearchCard(body, upc = "") {
+  const card = el("div", null, "card");
+  const button = el("button", "Search for product information", "secondary block");
+  button.type = "button";
+  const output = el("div");
+  card.append(button, el("p", "Optional: sends label evidence/barcode to openFDA. No photo is sent.", "small muted"), output);
+  button.addEventListener("click", async () => {
+    if (productResearchBusy) { output.textContent = "Another product lookup is running. Try again shortly."; return; }
+    productResearchBusy = true;
+    button.disabled = true;
+    output.textContent = "Searching official product labels…";
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    try {
+      const response = await fetch("/api/products/research", {
+        method: "POST", headers: {"Content-Type": "application/json"}, signal: controller.signal,
+        body: JSON.stringify({upc, evidence: body.match?.evidence || [], ocr: body.ocr || []}),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error?.message || "Product lookup failed.");
+      if (!card.isConnected) return; // a rescan or camera reset discarded this result
+      const nodes = [el("p", result.message, "notice"),
+        el("p", "Observed label text: " + (result.observed.label.join(" · ") || "None; barcode only"), "small"),
+        el("p", `${result.total_records} official record(s) · ${result.processing_ms} ms${result.cached ? " · cached" : ""}`, "small muted")];
+      if (result.search_basis === "label_evidence_after_identifier_not_found") nodes.push(el("p", "Exact identifier search found no label. These are approximate label-text candidates.", "notice"));
+      if (result.truncated) nodes.push(el("p", "More records exist; this is an incomplete result set.", "notice"));
+      if (!result.records.length) nodes.push(el("p", "No official label found. Barcode remains unresolved; try scanning the front label."));
+      for (const record of result.records) {
+        const details = el("details", null, "card");
+        details.append(el("summary", `${record.brands.join(" / ") || "Official label"} — ${record.comparison}`));
+        details.append(definitionList([
+          ["Retrieved ingredient text", record.active_ingredient_text.join(" · ") || "Unavailable"],
+          ["Retrieved purpose (not a recommendation)", record.purpose.join(" · ") || "Unavailable"],
+          ["Identifier association", record.exact_upc ? "Exact UPC listed on label" : record.exact_ndc ? "Exact package NDC listed on label" : "Text search candidate only"],
+          ["Exact package", record.exact_package],
+          ["Conflicts", record.conflicts.join(" · ") || "None detected; not proof of identity"],
+          ["Missing evidence", record.missing.join(" · ") || "None in this comparison"],
+          ["Source ID", record.source_id],
+          ["Label effective date", record.effective_time || "Unavailable"],
+        ]));
+        for (const [label, url] of [["openFDA source record", record.source_url], ["DailyMed label", record.dailymed_url]]) {
+          if (!url || !/^https:\/\/(api\.fda\.gov|dailymed\.nlm\.nih\.gov)\//.test(url)) continue;
+          const link = el("a", label); link.href = url; link.target = "_blank"; link.rel = "noopener noreferrer";
+          details.append(link, el("br"));
+        }
+        nodes.push(details);
+      }
+      output.replaceChildren(...nodes);
+    } catch (error) {
+      if (card.isConnected) output.textContent = error.name === "AbortError" ? "Lookup timed out. Try again." : error.message;
+    } finally {
+      clearTimeout(timeout); productResearchBusy = false; button.disabled = false;
+    }
+  });
+  return card;
+}
+
 function renderBarcode(body) {
   if (body.status === "NO_BARCODE") { showMessage(body.message); log("Barcode: none detected"); return; }
   const cards = body.barcodes.map((b) => {
@@ -441,6 +575,7 @@ function renderBarcode(body) {
       button.addEventListener("click", () => startFrontLabelScan(b.barcode.value));
       title.after(el("p", b.message, "notice"), button);
     }
+    if (b.final_status === "UNRESOLVED" && b.barcode.decoded) card.append(productResearchCard({}, b.barcode.value));
     log(`Barcode ${b.barcode.value || b.barcode.type}: ${b.final_status}`);
     return card;
   });
@@ -472,12 +607,12 @@ function startFrontLabelScan(barcodeValue) {
   show(card);
   log("Front label scan started for barcode " + barcodeValue);
   if (!stream) startCamera();
-  $("stage").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function captureFrontLabel() {
   if (!stream) { startCamera(); return; }
   if (awareness.on) stopAwareness("stopped");   // OCR does not run during awareness
+  $("result-title").textContent = "Medicine result";
   send("/api/identify", "Identification", renderIdentify);
 }
 
@@ -534,26 +669,130 @@ function renderIdentify(body) {
     ocrCard.append(el("p", "No text was read.", "muted"));
   }
   if (fallbackBarcode) card.append(captureFrontLabelButton("Capture front label again"));
+  if (match.status === "UNCERTAIN" || match.status === "NO_MATCH") card.append(productResearchCard(body, fallbackBarcode || ""));
   show(card, ocrCard);
   log(`Identify: ${match.status}, ${match.candidate_count} candidate(s), ${body.ocr.length} text item(s)`);
 }
 
+// AI uses the same phone preview and Speaker, with an independent request state.
+const askAI = new AskAI({
+  ready: () => Boolean(stream) && !busy,
+  capture: captureBlob,
+  fetch: (...args) => fetch(...args),
+  speaker,
+  visible: () => !document.hidden,
+  update: updateButtons,
+  voiceUpdate: updateVoiceButtons,
+  render: (text, loading) => {
+    sheets.close();                                        // the card replaces any open sheet
+    $("ai-panel").hidden = false;
+    $("stage").classList.add("ai-open");
+    $("ai-text").textContent = loading ? "Understanding the scene…" : text;
+    $("ai-spinner").hidden = !loading;
+    $("ai-panel").setAttribute("aria-busy", String(loading));
+    $("ai-read").disabled = loading || !askAI.text || !speaker.supported;
+  },
+  hide: () => {
+    $("ai-panel").hidden = true;
+    $("stage").classList.remove("ai-open");
+  },
+});
+
+// Capture coordinator prepares the crop; awarenessTick starts the independent OCR request.
+const medicineCapture = new MedicineCapture.MedicineCapture(() => document.createElement("canvas"));
+let medicinePreviewURL = null;
+const medicineScanner = new MedicineScanner(new MedicineCandidates.CandidateGate(), medicineCapture, {
+  status: text => { $("medicine-status").textContent = text; },
+  clear: () => {
+    if (medicinePreviewURL) URL.revokeObjectURL(medicinePreviewURL);
+    medicinePreviewURL = null;
+    $("medicine-preview").removeAttribute("src");
+    $("medicine-packet").hidden = true;
+    medicineIdentification.cancel();
+  },
+  ready: packet => {
+    medicinePreviewURL = URL.createObjectURL(packet.crop);
+    $("medicine-preview").src = medicinePreviewURL;
+    const m = packet.metadata;
+    $("medicine-details").textContent = `${m.capture_width}×${m.capture_height} frame · ` +
+      `${m.crop_width}×${m.crop_height} crop · ` + (m.track_id === null ? "untracked candidate" : `track #${m.track_id}`) +
+      " · captured label image";
+    $("medicine-packet").hidden = false;
+  },
+});
+function resetMedicineOrientation() { medicineScanner.invalidate(); }
+const medicineIdentification = new MedicineIdentification({
+  diagnostic: text => log("Medicine: " + text),
+  fetch: (...args) => fetch(...args),
+  assist: () => $("qwen-label-assist").checked,
+  status: text => { $("medicine-status").textContent = text; },
+  clear: () => { $("medicine-evidence").replaceChildren(); },
+  result: body => {
+    const rows = [["Matcher status", body.match.status], ["Label recognized", body.label_recognized],
+      ["Formulation", body.formulation], ["Exact package", body.exact_package]];
+    const details = definitionList(rows);
+    const timing = body.timing;
+    const nodes = [details, el("p", body.match.reason, "small muted"),
+      el("p", `OCR ${timing.ocr_ms} ms · match ${timing.matcher_ms} ms · Qwen ${timing.qwen_ms} ms · total ${timing.round_trip_ms} ms`, "small muted")];
+    if (body.qwen.enabled) {
+      nodes.push(el("p", "Optional Qwen reader — unverified, excluded from matching", "small"));
+      nodes.push(el("p", body.qwen.error || (body.qwen.lines || []).join(" · "), "small"));
+      if ((body.qwen.unconfirmed_or_conflicting || []).length)
+        nodes.push(el("p", "Unconfirmed or conflicting: " + body.qwen.unconfirmed_or_conflicting.join(" · "), "small"));
+    }
+    if (body.match.status === "UNCERTAIN" || body.match.status === "NO_MATCH") nodes.push(productResearchCard(body));
+    $("medicine-evidence").replaceChildren(...nodes);
+    $("medicine-status").textContent = body.match.status + " · " + body.formulation;
+  },
+});
+
 // ---------- wiring
 
-$("toggle-camera").addEventListener("click", () => (stream ? (stopCamera(), log("Camera stopped")) : startCamera()));
-$("flip-camera").addEventListener("click", () => { facing = facing === "environment" ? "user" : "environment"; startCamera(); });
+$("auto-medicine").addEventListener("change", event => {
+  $("medicine-panel").hidden = !event.target.checked;    // no status line on screen while the feature is off
+  medicineScanner.enable(event.target.checked);
+});
+$("medicine-rescan").addEventListener("click", () => medicineScanner.invalidate());
+$("medicine-discard").addEventListener("click", () => {
+  medicineScanner.clear();
+  $("medicine-status").textContent = "Candidate image discarded";
+});
+window.addEventListener("orientationchange", resetMedicineOrientation);
+video.addEventListener("resize", resetMedicineOrientation);
+$("ask-ai").addEventListener("click", () => askAI.ask());
+$("ai-close").addEventListener("click", () => askAI.close());
+$("ai-read").addEventListener("click", () => askAI.speak());
+$("ai-stop").addEventListener("click", () => speaker.cancel());
+function scan(path, label, title, render) {
+  sheets.close();                 // the menu makes way for the camera, then for the result
+  fallbackBarcode = null;
+  $("result-title").textContent = title;
+  send(path, label, render);
+}
+
+$("welcome-start").addEventListener("click", () => startCamera());
+$("toggle-camera").addEventListener("click", () => {
+  sheets.close();
+  if (stream) { stopCamera(); log("Camera stopped"); } else startCamera();
+});
+$("flip-camera").addEventListener("click", () => {
+  sheets.close();
+  facing = facing === "environment" ? "user" : "environment";
+  startCamera();
+});
 $("camera-select").addEventListener("change", (event) => startCamera(event.target.value));
-$("scan-barcode").addEventListener("click", () => { fallbackBarcode = null; send("/api/barcode", "Barcode scan", renderBarcode); });
-$("identify").addEventListener("click", () => { fallbackBarcode = null; send("/api/identify", "Identification", renderIdentify); });
-$("enable-voice").addEventListener("click", enableVoice);
-$("disable-voice").addEventListener("click", disableVoice);
+$("scan-barcode").addEventListener("click", () => scan("/api/barcode", "Scanning barcode", "Barcode result", renderBarcode));
+$("identify").addEventListener("click", () => scan("/api/identify", "Reading label", "Medicine result", renderIdentify));
+$("voice-toggle").addEventListener("click", () => (speaker.enabled ? disableVoice() : enableVoice()));
 $("voice-volume").addEventListener("input", (event) => { speaker.volume = Number(event.target.value); });
-$("start-awareness").addEventListener("click", startAwareness);
-$("stop-awareness").addEventListener("click", () => stopAwareness("stopped"));
-$("more-tools").addEventListener("click", () => {
-  const open = $("tools").hidden;
-  $("tools").hidden = !open;
-  $("more-tools").setAttribute("aria-expanded", String(open));
+$("awareness-toggle").addEventListener("click", () => (awareness.on ? stopAwareness("stopped") : startAwareness()));
+$("more-tools").addEventListener("click", () => sheets.toggle("tools", $("more-tools")));
+$("tools-close").addEventListener("click", () => sheets.close("tools"));
+$("sheet-backdrop").addEventListener("click", () => sheets.close("tools"));   // tap outside the menu
+$("result-close").addEventListener("click", () => sheets.close("result-sheet"));
+document.addEventListener("keydown", (event) => {
+  if (sheets.key(event.key)) event.preventDefault();
+  else trapFocus(event);
 });
 // Keep the boxes aligned when the preview changes size or the phone is rotated
 window.addEventListener("resize", drawOverlay);
@@ -562,18 +801,50 @@ video.addEventListener("resize", drawOverlay);
 if (window.ResizeObserver) new ResizeObserver(drawOverlay).observe($("stage"));
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) return;
+  askAI.close();
   speaker.cancel();
   stopAwareness("page inactive");
   if (stream && !busy) { stopCamera(); log("Camera stopped (page hidden)"); }
 });
-window.addEventListener("pagehide", () => stopAwareness("page inactive"));
+window.addEventListener("pagehide", () => { askAI.close(); stopAwareness("page inactive"); });
 
 fetch("/health").then((r) => r.json()).then((health) => {
+  serverOk = true;
+  const buildNode = $("app-build");
+  const pageBuild = buildNode.dataset && buildNode.dataset.build;
+  if (pageBuild) buildNode.textContent = `Build ${pageBuild} · JavaScript ready · ` +
+    (health.build === pageBuild ? 'backend matches' : 'BACKEND CHANGED — reload this page');
   $("server-state").textContent = "server ready";
   $("server-state").className = "pill good";
   if (health.registry_error) log("Local UPC registry not loaded: " + health.registry_error);
+  updateButtons();
 }).catch(() => {
+  serverOk = false;
   $("server-state").textContent = "server unreachable";
   $("server-state").className = "pill bad";
+  updateButtons();
 });
-if (!window.isSecureContext) $("camera-message").textContent = cameraError();
+if (!window.isSecureContext) {
+  $("camera-message").textContent = cameraError();
+  $("camera-message").hidden = false;
+}
+updateButtons();
+
+function syncCameraViewport() {
+  const viewport = window.visualViewport;
+  if (viewport) {
+    $("stage").style.setProperty("--camera-height", `${viewport.height}px`);
+    $("stage").style.setProperty("--camera-width", `${viewport.width}px`);
+  }
+  drawOverlay();
+  const stageRect = $("stage").getBoundingClientRect(), videoRect = video.getBoundingClientRect();
+  $("camera-layout").textContent = `Viewport ${Math.round(window.innerWidth)}×${Math.round(window.innerHeight)} · ` +
+    `stage ${Math.round(stageRect.width)}×${Math.round(stageRect.height)} · video ${Math.round(videoRect.width)}×${Math.round(videoRect.height)} · ` +
+    `source ${video.videoWidth}×${video.videoHeight} · fit ${getComputedStyle(video).objectFit}`;
+}
+if (window.visualViewport) {
+  video.addEventListener("resize", syncCameraViewport);
+  window.visualViewport.addEventListener("resize", syncCameraViewport);
+  window.visualViewport.addEventListener("scroll", syncCameraViewport);
+  syncCameraViewport();
+}

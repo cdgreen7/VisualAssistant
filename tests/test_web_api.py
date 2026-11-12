@@ -101,9 +101,10 @@ class GeneralTests(ApiTestCase):
     def test_page_has_voice_controls_off_by_default(self):
         client = self.client()
         page = client.get("/").data.decode()
-        for expected in ('id="enable-voice"', 'id="disable-voice" type="button" disabled', "voice off",
-                         'id="voice-volume"', "static/announcer.js", "static/view.js",
-                         'id="scene"', 'id="start-awareness"', 'id="flip-camera"', 'id="scan-barcode"', 'id="identify"'):
+        for expected in ('id="voice-toggle" type="button" class="tile" aria-pressed="false"', 'id="voice-volume"',
+                         "static/announcer.js", "static/view.js", "static/ui.js", 'id="scene"',
+                         'id="awareness-toggle"', 'id="ask-ai"', 'id="more-tools"', 'id="welcome-start"',
+                         "The camera is off.", 'id="flip-camera"', 'id="scan-barcode"', 'id="identify"'):
             self.assertIn(expected, page)
         self.assertLess(page.index("announcer.js"), page.index("app.js"))  # app.js uses it
         self.assertEqual(client.get("/static/announcer.js").status_code, 200)

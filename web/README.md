@@ -9,19 +9,46 @@ and YOLO/EasyOCR never run on the phone.
 iPhone Safari -> camera -> still image -> Flask on the Mac -> vision/ modules -> JSON -> browser
 ```
 
+## Optional product research
+
+Uncertain medicine and unresolved barcode results now offer **Search for product
+information**. This sends text evidence (no images) to openFDA only when tapped.
+See [configuration, evidence rules, tests and iPhone instructions](PRODUCT_LOOKUP.md).
+
+## Phase 4B: automatic label identification and camera layout
+
+Stable high-resolution bottle crops now run EasyOCR and the existing matcher
+automatically. See [workflow, evidence levels, benchmarks, limitations and
+exact iPhone steps](PHASE_4B.md). Automatic scanning and optional Qwen label
+reading remain off by default. No medicine information is spoken automatically.
+
+## Phase 4A: optional automatic candidate capture
+
+Automatic medicine scanning is disabled by default. It prepares a detailed
+iPhone frame and generic bottle crop in browser memory, without identifying
+anything. See [algorithm, testing steps and limitations](PHASE_4A.md).
+
+## Optional Ask AI
+
+Ask AI uses the existing iPhone preview and local `qwen2.5vl:3b` through
+Ollama. See [setup, API examples, tests and limitations](ASK_AI.md).
+
 ## Endpoints
 
 | Method | Path            | Purpose |
 |--------|-----------------|---------|
 | GET    | `/`             | The camera page |
 | GET    | `/health`       | `{"status": "ok", "loaded": [...]}` |
+| POST   | `/api/scene/describe` | One JPEG/PNG -> local Qwen scene description (4 MiB / 12 MP limit) |
 | POST   | `/api/detect`   | Image -> YOLO -> every detected object with LEFT/CENTER/RIGHT (environmental awareness) |
 | POST   | `/api/detect/reset` | Forget one awareness session's track IDs (`session_id` field) |
 | POST   | `/api/barcode`  | Image -> barcodes -> FDA lookup + local UPC registry -> reconciled result |
+| POST   | `/api/medicine/identify-crop` | Detailed crop + session/capture IDs -> existing EasyOCR/ProductMatcher; optional untrusted Qwen reader |
+| POST   | `/api/products/research` | JSON OCR evidence/UPC -> cited official label candidates; never changes verification |
 | POST   | `/api/identify` | Image -> YOLO bottle -> crop -> EasyOCR -> ProductMatcher |
 
-All POST endpoints take a multipart form with one file field named `image`
-(JPEG or PNG, at most 10 MB). Errors are JSON: `{"error": {"code", "message"}}`.
+Image POST endpoints take a multipart form with one file field named `image`
+(JPEG or PNG, at most 10 MB; Ask AI has the smaller limit above). Errors are JSON: `{"error": {"code", "message"}}`.
 
 ### Tracking IDs on `/api/detect`
 
