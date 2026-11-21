@@ -12,6 +12,21 @@ let busy = false;
 let fallbackBarcode = null;   // barcode value kept on screen while the front label is scanned instead
 let serverOk = null;          // null until /health answers
 
+// ---------- latency measurement (timing.js): a few timestamps per request, kept in memory.
+// Opening the page with ?research=1 also uploads them to the server's --timing-log file.
+const RESEARCH = typeof location !== "undefined" && /[?&]research=1(&|$)/.test(location.search);
+const timings = new Timing.Recorder({
+  fetch: (...args) => fetch(...args),
+  upload: RESEARCH ? async (records) => {
+    const meta = { client: Timing.clientLabel(navigator.userAgent), viewport: `${innerWidth}x${innerHeight}`,
+                   dpr: window.devicePixelRatio || 1, secure: window.isSecureContext };
+    const response = await fetch("/api/research/timings", { method: "POST", keepalive: true,
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify({ meta, records }) });
+    return response.ok;
+  } : null,
+});
+window.VATimings = timings;   // VATimings.summary() in the console shows median / p90 / p95
+
 // ---------- small DOM helpers (textContent only: server text is never parsed as HTML)
 
 function el(tag, text, className) {
@@ -204,18 +219,23 @@ async function send(path, label, render) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   const started = performance.now();
+  const trace = timings.begin(path.replace("/api/", ""));
   try {
     const blob = await captureBlob();
+    trace.mark("prepared");
+    Object.assign(trace.extra, { upload_bytes: blob.size, image: `${canvas.width}x${canvas.height}` });
     const form = new FormData();
     form.append("image", blob, "capture.jpg");
     log(`${label}: sent ${canvas.width}×${canvas.height} image (${Math.round(blob.size / 1024)} KB)`);
-    const response = await fetch(path, { method: "POST", body: form, signal: controller.signal });
+    const response = await trace.fetch(path, { method: "POST", body: form, signal: controller.signal });
     let body = null;
     try { body = await response.json(); } catch (error) { /* not JSON */ }
+    trace.mark("parsed");
     if (!response.ok || !body) {
       throw new Error(body && body.error ? body.error.message : `Server error (${response.status})`);
     }
     render(body);
+    trace.mark("rendered").end();
     log(`${label}: done in ${((performance.now() - started) / 1000).toFixed(1)} s`);
   } catch (error) {
     const message = error.name === "AbortError" ? "The server took too long to answer." :
@@ -265,6 +285,8 @@ const speaker = new Announcer.Speaker(window.speechSynthesis, window.SpeechSynth
   log("Voice error: " + reason);
 });
 
+speaker.onStart = () => timings.speechStarted();
+
 function setVoiceState(text, tone) {
   $("voice-state").textContent = text;
   $("voice-state").className = "pill" + (tone ? " " + tone : "");
@@ -296,9 +318,10 @@ function disableVoice() {
 }
 
 // One detection result in, at most one spoken phrase out.
-function announce(detections) {
+function announce(detections, trace) {
   const text = announcements.update(detections, performance.now(), speaker.canSpeak && !askAI.active);
   if (!text || !speaker.say(text)) return;
+  if (trace) timings.expectSpeech(trace);                // measures response -> speech start
   $("voice-last").textContent = "Said: " + text;
   log("Voice: " + text);
 }
@@ -359,6 +382,7 @@ async function awarenessTick() {
   const medicineGeneration = medicineScanner.generation;
   let snapshot = null;
   let captureError = null;
+  const trace = timings.begin("detect");
   try {
     const form = new FormData();
     if (medicineScanner.enabled && !medicineScanner.busy && !busy && !askAI.busy) {
@@ -370,12 +394,16 @@ async function awarenessTick() {
         $("medicine-status").textContent = "Capture unavailable: " + error.message;
       }
     }
-    form.append("image", snapshot ? snapshot.detectionBlob : await captureBlob(AWARENESS_MAX_SIDE, 0.7), "frame.jpg");
+    const frameBlob = snapshot ? snapshot.detectionBlob : await captureBlob(AWARENESS_MAX_SIDE, 0.7);
+    trace.mark("prepared");
+    trace.extra.upload_bytes = frameBlob.size;
+    form.append("image", frameBlob, "frame.jpg");
     form.append("session_id", awareness.session);
     form.append("frame", String(++awareness.frame));
-    const response = await fetch("/api/detect", { method: "POST", body: form, signal: controller.signal });
+    const response = await trace.fetch("/api/detect", { method: "POST", body: form, signal: controller.signal });
     let body = null;
     try { body = await response.json(); } catch (error) { /* not JSON */ }
+    trace.mark("parsed");
     if (!awareness.on || controller !== awareness.controller) return;
     if (!response.ok || !body) {
       const failure = new Error(body && body.error ? body.error.message : `Server error (${response.status})`);
@@ -384,7 +412,8 @@ async function awarenessTick() {
     }
     awareness.failures = 0;
     awareness.last = body;
-    renderAwareness(body, Math.round(performance.now() - started));
+    renderAwareness(body, Math.round(performance.now() - started), trace);
+    trace.mark("rendered").end({ image: `${body.image_width}x${body.image_height}`, objects: body.detection_count });
     if (!captureError && medicineGeneration === medicineScanner.generation) {
       await medicineScanner.observe({...body, session_id: awareness.session, frame: awareness.frame}, snapshot, performance.now(), !busy && !askAI.busy &&
         View.sameShape(body.image_width, body.image_height, video.videoWidth, video.videoHeight));
@@ -417,13 +446,13 @@ function awarenessFailed(error, timedOut) {
   }
 }
 
-function renderAwareness(body, totalMs) {
+function renderAwareness(body, totalMs, trace) {
   setAwarenessState("Awareness on", "good");
   $("awareness-latency").textContent = `Awareness: inference ${body.inference_time_ms} ms · round trip ${totalMs} ms · ` +
     `${body.image_width}×${body.image_height} frame` + (body.tracking === "ok" ? "" : ` · tracking ${body.tracking || "off"}`);
   renderScene(body.detections);
   drawOverlay();
-  announce(body.detections);
+  announce(body.detections, trace);
 }
 
 // The compact panel at the bottom-left of the camera: who/what is where.
@@ -675,10 +704,24 @@ function renderIdentify(body) {
 }
 
 // AI uses the same phone preview and Speaker, with an independent request state.
+// A fetch that records only the round trip and the server's stage times (no capture or render marks).
+function tracedFetch(kind) {
+  return async (...args) => {
+    const trace = timings.begin(kind);
+    try { return await trace.fetch(...args); } finally { trace.end(); }
+  };
+}
+let aiTrace = null;
+
 const askAI = new AskAI({
   ready: () => Boolean(stream) && !busy,
-  capture: captureBlob,
-  fetch: (...args) => fetch(...args),
+  capture: async (...args) => {                          // Ask AI trace: capture -> Qwen -> card -> speech
+    aiTrace = timings.begin("scene/describe");
+    const blob = await captureBlob(...args);
+    aiTrace.mark("prepared").extra.upload_bytes = blob.size;
+    return blob;
+  },
+  fetch: (...args) => (aiTrace ? aiTrace.fetch(...args) : fetch(...args)),
   speaker,
   visible: () => !document.hidden,
   update: updateButtons,
@@ -688,6 +731,12 @@ const askAI = new AskAI({
     $("ai-panel").hidden = false;
     $("stage").classList.add("ai-open");
     $("ai-text").textContent = loading ? "Understanding the scene…" : text;
+    if (!loading && aiTrace) {
+      const trace = aiTrace;
+      aiTrace = null;
+      trace.mark("rendered").end();
+      timings.expectSpeech(trace);                         // if it is read aloud, when does speech start?
+    }
     $("ai-spinner").hidden = !loading;
     $("ai-panel").setAttribute("aria-busy", String(loading));
     $("ai-read").disabled = loading || !askAI.text || !speaker.supported;
@@ -723,7 +772,7 @@ const medicineScanner = new MedicineScanner(new MedicineCandidates.CandidateGate
 function resetMedicineOrientation() { medicineScanner.invalidate(); }
 const medicineIdentification = new MedicineIdentification({
   diagnostic: text => log("Medicine: " + text),
-  fetch: (...args) => fetch(...args),
+  fetch: tracedFetch("medicine/identify-crop"),
   assist: () => $("qwen-label-assist").checked,
   status: text => { $("medicine-status").textContent = text; },
   clear: () => { $("medicine-evidence").replaceChildren(); },
@@ -806,7 +855,7 @@ document.addEventListener("visibilitychange", () => {
   stopAwareness("page inactive");
   if (stream && !busy) { stopCamera(); log("Camera stopped (page hidden)"); }
 });
-window.addEventListener("pagehide", () => { askAI.close(); stopAwareness("page inactive"); });
+window.addEventListener("pagehide", () => { timings.flush(); askAI.close(); stopAwareness("page inactive"); });
 
 fetch("/health").then((r) => r.json()).then((health) => {
   serverOk = true;

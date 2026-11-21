@@ -36,6 +36,9 @@ class FrontendJavaScriptTests(unittest.TestCase):
     def test_interface_state_and_sheets(self):
         self.run_node("ui.test.js")
 
+    def test_latency_recorder(self):
+        self.run_node("timing.test.js")
+
 
 if __name__ == "__main__":
     unittest.main()

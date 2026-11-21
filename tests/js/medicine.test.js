@@ -187,7 +187,7 @@ test('app integration keeps detection at 640, prepares native snapshot, automati
   const window={events:{},isSecureContext:true,addEventListener(name,fn){this.events[name]=fn;}};
   const ctx=vm.createContext({window,document:{getElementById:node,hidden:false,addEventListener(){},
     createTextNode:t=>t,createElement:tag=>tag==='canvas'?c.create():node(Symbol())},
-    navigator:{},UI:require('../../web/static/ui.js'),Announcer:require('../../web/static/announcer.js'),
+    navigator:{},UI:require('../../web/static/ui.js'),Timing:require('../../web/static/timing.js'),Announcer:require('../../web/static/announcer.js'),
     AskAI:require('../../web/static/ask-ai.js'),View:require('../../web/static/view.js'),
     MedicineCandidates:require('../../web/static/medicine-candidates.js'),
     MedicineCapture:require('../../web/static/medicine-capture.js'),MedicineScanner, MedicineIdentification:require('../../web/static/medicine-identification.js'),
