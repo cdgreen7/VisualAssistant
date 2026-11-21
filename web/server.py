@@ -21,7 +21,7 @@ from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 
 from vision.barcode_scan import NO_BARCODE
 from vision.products.barcode_lookup import conflicting
-from web import serialize
+from web import serialize, timing
 from web.qwen_scene import QwenSceneService, prepare_image
 from web.services import ServiceError, VisionServices
 from web.track_sessions import OFF, SESSION_ID, TrackSessions
@@ -40,7 +40,8 @@ def read_image(files):
     data = upload.read()
     if not data:
         raise ServiceError(400, "missing_image", "The uploaded image is empty.")
-    image = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+    with timing.stage("decode"):
+        image = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
     if image is None:
         raise ServiceError(400, "invalid_image", "The upload is not a readable image (use JPEG or PNG).")
     if image.shape[0] * image.shape[1] > MAX_PIXELS:
@@ -67,8 +68,9 @@ class CameraRequest(Request):
         return super()._get_file_stream(total_content_length, content_type, filename, content_length)
 
 
-def create_app(services=None, max_upload_bytes=MAX_UPLOAD_BYTES, track_sessions=None, scene_service=None, label_reader=None, research_service=None):
+def create_app(services=None, max_upload_bytes=MAX_UPLOAD_BYTES, track_sessions=None, scene_service=None, label_reader=None, research_service=None, timing_log=None):
     app = Flask(__name__)
+    timing.install(app, timing_log)   # Server-Timing header on every response; bodies unchanged
     root = Path(__file__).parent
     # One startup fingerprint for backend, template and every frontend module.
     sources = sorted(p for p in root.rglob('*') if p.suffix in {'.py', '.js', '.css', '.html'})
@@ -91,7 +93,9 @@ def create_app(services=None, max_upload_bytes=MAX_UPLOAD_BYTES, track_sessions=
     def product_research():
         if request.content_length and request.content_length > 32768:
             raise ServiceError(413, "evidence_too_large", "Research evidence must be under 32 KB.")
-        return jsonify(research_service.research(request.get_json(silent=True)))
+        with timing.stage("research"):
+            found = research_service.research(request.get_json(silent=True))
+        return jsonify(found)
 
     def error(http_status, code, message):
         return jsonify({"error": {"code": code, "message": message}}), http_status
@@ -130,8 +134,11 @@ def create_app(services=None, max_upload_bytes=MAX_UPLOAD_BYTES, track_sessions=
 
     @app.post("/api/scene/describe")
     def describe_scene():
-        image = prepare_image(request.files.get("image"))
-        return jsonify(scene_service.describe(image))
+        with timing.stage("decode"):
+            image = prepare_image(request.files.get("image"))
+        with timing.stage("qwen"):
+            described = scene_service.describe(image)
+        return jsonify(described)
 
     @app.post("/api/detect")
     def detect():
@@ -141,7 +148,8 @@ def create_app(services=None, max_upload_bytes=MAX_UPLOAD_BYTES, track_sessions=
         detections, inference_ms = services.detect(image)
         track_ids, tracking = [None] * len(detections), OFF
         if session_id is not None:  # YOLO alone keeps no identity between requests
-            track_ids, tracking = track_sessions.track(session_id, frame, detections)
+            with timing.stage("tracking"):
+                track_ids, tracking = track_sessions.track(session_id, frame, detections)
         return jsonify({
             "detections": [serialize.environment_detection(d, width, track_id)
                            for d, track_id in zip(detections, track_ids)],
@@ -162,7 +170,8 @@ def create_app(services=None, max_upload_bytes=MAX_UPLOAD_BYTES, track_sessions=
     @app.post("/api/barcode")
     def barcode():
         image = read_image(request.files)
-        found = services.scan_barcodes(image)
+        with timing.stage("barcode"):
+            found = services.scan_barcodes(image)
         return jsonify({
             "status": "OK" if found else "NO_BARCODE",
             "message": None if found else NO_BARCODE,
@@ -179,7 +188,8 @@ def create_app(services=None, max_upload_bytes=MAX_UPLOAD_BYTES, track_sessions=
         # Validate JPEG/PNG with the same in-memory validator, without its scene
         # resizing: OCR receives every uploaded pixel.
         from web.medicine_upload import read_crop
-        image = read_crop(request.files.get("image"))
+        with timing.stage("decode"):
+            image = read_crop(request.files.get("image"))
         app.logger.warning("medicine crop accepted: %dx%d", image.shape[1], image.shape[0])
         body = services.identify_crop(image)
         app.logger.warning("medicine OCR/matcher complete: %s; timing=%s", body["match"]["status"], body["timing"])
@@ -192,6 +202,7 @@ def create_app(services=None, max_upload_bytes=MAX_UPLOAD_BYTES, track_sessions=
             except ServiceError as failure:
                 body["qwen"] = {"enabled": True, "error": failure.message, "used_for_matching": False}
             body["timing"]["qwen_ms"] = round((time.perf_counter()-started)*1000, 2)
+            timing.record("qwen", body["timing"]["qwen_ms"])
         else:
             body["timing"]["qwen_ms"] = 0
         body["timing"]["total_ms"] += body["timing"]["qwen_ms"]
@@ -221,6 +232,8 @@ def main():
     parser.add_argument("--cert", help="TLS certificate (PEM)")
     parser.add_argument("--key", help="TLS private key (PEM)")
     parser.add_argument("--lazy", action="store_true", help="load models on first use instead of at startup")
+    parser.add_argument("--timing-log", metavar="FILE",
+                        help="research runs: append browser-side timings sent by pages opened with ?research=1")
     args = parser.parse_args()
 
     if bool(args.cert) != bool(args.key):
@@ -237,7 +250,7 @@ def main():
             print(f"Local UPC registry not loaded: {services.registry_error}")
     scheme = "https" if args.cert else "http"
     print(f"Visual Assistant web app: {scheme}://{'localhost' if args.host in LOOPBACK else args.host}:{args.port}")
-    create_app(services).run(host=args.host, port=args.port, debug=False, threaded=True,
+    create_app(services, timing_log=args.timing_log).run(host=args.host, port=args.port, debug=False, threaded=True,
                              ssl_context=(args.cert, args.key) if args.cert else None)
 
 

@@ -8,6 +8,8 @@ import os
 import threading
 import time
 
+from web import timing
+
 FDA_CACHE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                          "vision", "products", "data", "otc_ndc_2026-10-30.json")
 
@@ -108,7 +110,9 @@ class VisionServices:
         try:
             started = time.perf_counter()
             detections = detector.get_detections(detector.detect(image))
-            return detections, (time.perf_counter() - started) * 1000
+            inference_ms = (time.perf_counter() - started) * 1000
+            timing.record("yolo", inference_ms)
+            return detections, inference_ms
         finally:
             lock.release()
 
@@ -134,7 +138,11 @@ class VisionServices:
         if not self._ocr_lock.acquire(timeout=self._busy_timeout):
             raise ServiceError(503, "busy", "Another label scan is running.")
         try:
-            return detections, identify_detection(image, detections, recognizer, matcher)
+            # "identify" is the whole select + crop + OCR + match step; crop/select
+            # time is identify minus ocr minus match.
+            with timing.stage("identify"):
+                return detections, identify_detection(image, detections, timing.Timed(recognizer, "read", "ocr"),
+                                                      timing.Timed(matcher, "match", "match"))
         finally:
             self._ocr_lock.release()
 
@@ -168,6 +176,8 @@ class VisionServices:
             body = explain(ocr, matched)
             body["ocr"] = [dict(text=r["text"], confidence=float(r["confidence"])) for r in ocr]
             times["total_ms"] = round((time.perf_counter()-started)*1000, 2)
+            timing.record("ocr", times["ocr_ms"])
+            timing.record("match", times["matcher_ms"])
             body["timing"] = times
             return body
         finally:

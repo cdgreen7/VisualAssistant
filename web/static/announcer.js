@@ -122,6 +122,7 @@
       try {
         const utterance = new this.Utterance(text);
         utterance.volume = this.volume;
+        utterance.onstart = () => { if (this.onStart) this.onStart(text); };   // for latency measurement
         utterance.onerror = (event) => {
           const reason = event && event.error;
           if (reason !== "canceled" && reason !== "interrupted") this.onError(reason || "unknown error");
