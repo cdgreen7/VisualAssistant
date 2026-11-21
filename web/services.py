@@ -34,7 +34,10 @@ def _load_registry():
 
 def _load_detector():
     from vision.detector import ObjectDetector
-    return ObjectDetector()
+    from vision.safe_image import keep_pillow_open
+    detector = ObjectDetector()
+    keep_pillow_open()   # YOLO must not make a bad upload trigger a package install
+    return detector
 
 
 def _load_recognizer():
