@@ -1,0 +1,21 @@
+[
+  {
+    "image": "vision/advil_front.jpg",
+    "product": "Equate Ibuprofen Tablets 200 mg, 500 coated tablets (front of bottle)",
+    "brand_words": ["equate"],
+    "ingredients": [["IBUPROFEN", "200 mg"]],
+    "formulation": [["IBUPROFEN", "200 mg/1"]],
+    "package_ndc": null,
+    "visible_text": [
+      "equate",
+      "Compare to Advil active ingredient",
+      "Ibuprofen",
+      "Tablets 200mg",
+      "Pain Reliever/",
+      "Fever Reducer (NSAID)",
+      "200 mg",
+      "500 COATED TABLETS"
+    ],
+    "label_source": "Read from the photo by a person/assistant; the NDC on the bottle is too small to read. Confirm against the physical bottle."
+  }
+]

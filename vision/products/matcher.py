@@ -21,6 +21,14 @@ competitors and stays UNCERTAIN.
 There is no fuzzy matching in V1: "ADV1L" is not read as "ADVIL". An
 observed base name ("DIPHENHYDRAMINE") keeps salt forms as candidates but
 can't verify them; the salt must be read.
+
+OCR corrections are limited to a letter O inside a numeric strength
+("2oomg" -> 200mg). Corrected evidence keeps its original text, can narrow
+candidates, but never satisfies VERIFIED on its own.
+
+Store-brand words used by few labelers (EQUATE) become "brand_hint"
+evidence, and brands named in "Compare to ..." text become "compared_brand"
+evidence. Neither narrows candidates or counts toward VERIFIED.
 """
 import re
 from collections import defaultdict
@@ -40,13 +48,26 @@ VERIFY_CONFIDENCE = 0.6  # evidence used to VERIFY must reach this
 # "PAIN": 2313, "RELIEF": 4263). Also a prototype value.
 MAX_BRAND_WORD_FREQUENCY = 100
 
+# An exact FDA brand phrase that fails the rule above but has a word used by
+# at most this many labelers is kept as a "brand_hint" (e.g. store brands:
+# "EQUATE" is in 341 brand names but from 11 labelers; "ANTACID" from 130).
+# Hints are reported and used to order candidates; they never narrow
+# candidates or count toward VERIFIED. Prototype value.
+MAX_BRAND_HINT_LABELERS = 20
+
 MAX_PHRASE_WORDS = 6
 
 STOP_WORDS = {"AND", "OF", "THE", "WITH", "FOR", "IN", "TO", "A", "AN", "OR", "PLUS"}
 UNITS = {"MG", "MCG", "G", "ML"}
 SYNONYMS = {"HCL": "HYDROCHLORIDE"}
 
-STRENGTH_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(MG|MCG|G|ML)\b")
+# Not preceded by a digit, "." or letter O, so fragments of a misread number
+# ("1O.5 MG" -> "5 MG", "BO0MG" -> "0MG") are not read as strengths.
+STRENGTH_RE = re.compile(r"(?<![0-9.O])(\d+(?:\.\d+)?)\s*(MG|MCG|G|ML)\b")
+# A strength whose number starts with a digit but has letter O in place of
+# zero ("2OOMG", "20OMG"). Only this pattern is corrected; brands, NDCs and
+# other text never are.
+CONFUSED_STRENGTH_RE = re.compile(r"(?<![A-Z0-9.])(\d[0-9O]*(?:\.[0-9O]+)?)\s*(MG|MCG|G|ML)\b")
 NDC_RE = re.compile(r"\b\d{4,5}-\d{3,4}-\d{1,2}\b|NDC[\s:#]*\d{10,11}\b")
 
 
@@ -75,10 +96,13 @@ class Evidence:
     """A product-relevant phrase found in one or two observations.
 
     value is the normalized form of the observed text, not a catalog value.
+    corrected_from holds the original text when value is an OCR correction
+    ("2OOMG" -> "200mg"); corrected evidence can't satisfy VERIFIED.
     """
-    kind: str  # "brand" | "ingredient" | "strength" | "ndc"
+    kind: str  # "brand" | "brand_hint" | "compared_brand" | "ingredient" | "strength" | "ndc"
     value: str
     observations: Tuple[Observation, ...]
+    corrected_from: Optional[str] = None
 
     @property
     def confidence(self):
@@ -100,6 +124,7 @@ class FormulationCandidate:
     base_only_ingredients: List[str]          # observed only by base name, salt not read
     missing_strengths: List[str]              # catalog strengths not observed
     missing_brand_words: Dict[str, List[str]]  # catalog brand -> words not observed
+    brand_hint_records: int = 0               # records whose brand contains an observed brand hint
 
     @property
     def product_ids(self):
@@ -139,11 +164,12 @@ def _compatible(observed, catalog):
 
 class ProductMatcher:
     def __init__(self, catalog, min_confidence=MIN_CONFIDENCE, verify_confidence=VERIFY_CONFIDENCE,
-                 max_brand_word_frequency=MAX_BRAND_WORD_FREQUENCY):
+                 max_brand_word_frequency=MAX_BRAND_WORD_FREQUENCY, max_brand_hint_labelers=MAX_BRAND_HINT_LABELERS):
         self.catalog = catalog
         self.min_confidence = min_confidence
         self.verify_confidence = verify_confidence
         self.max_brand_word_frequency = max_brand_word_frequency
+        self.max_brand_hint_labelers = max_brand_hint_labelers
 
         self._records = catalog.records
         self._position = {r["product_id"]: i for i, r in enumerate(self._records)}
@@ -151,9 +177,12 @@ class ProductMatcher:
         # Brand words -> record positions; used only to expand an already
         # matched complete brand phrase into its family (ADVIL -> ADVIL PM, ...)
         self._brand_word_index = defaultdict(set)
+        brand_word_labelers = defaultdict(set)
         for i, record in enumerate(self._records):
             for word in name_key(record["brand_name"]).split():
                 self._brand_word_index[word].add(i)
+                brand_word_labelers[word].add(name_key(record["labeler_name"]))
+        self._brand_word_labelers = {word: len(labelers) for word, labelers in brand_word_labelers.items()}
 
         self._ingredient_index = defaultdict(set)
         self._strength_index = defaultdict(set)
@@ -177,6 +206,23 @@ class ProductMatcher:
             for word in phrase.split()
         )
 
+    def _is_brand_hint(self, phrase):
+        return (not self._is_distinctive_brand(phrase)
+                and any(word not in self._generic_words and not word.isdigit()
+                        and self._brand_word_labelers.get(word, 0) <= self.max_brand_hint_labelers
+                        for word in phrase.split())
+                and bool(self.catalog.find_by_brand(phrase)))
+
+    @staticmethod
+    def _strengths(text):
+        """(value, corrected_from) for each strength in upper-case text."""
+        found = [(strength_key(f"{number} {unit}"), None) for number, unit in STRENGTH_RE.findall(text)]
+        for match in CONFUSED_STRENGTH_RE.finditer(text):
+            number, unit = match.groups()
+            if "O" in number:
+                found.append((strength_key(f"{number.replace('O', '0')} {unit}"), match.group(0)))
+        return found
+
     def _phrases(self, words, accept):
         """Longest accepted word n-grams of one line, without overlaps."""
         found = []
@@ -198,21 +244,37 @@ class ProductMatcher:
 
             brands = self._phrases(words, lambda p: self._is_distinctive_brand(p) and self.catalog.find_by_brand(p))
             evidence += [Evidence("brand", p, (obs,)) for p in brands]
+            evidence += [Evidence("brand_hint", p, (obs,)) for p in self._phrases(words, self._is_brand_hint)]
 
             ingredients = self._phrases(words, lambda p: ingredient_key(p) in self._ingredient_index)
             evidence += [Evidence("ingredient", p, (obs,)) for p in ingredients]
 
-            for number, unit in STRENGTH_RE.findall(text):
-                evidence.append(Evidence("strength", strength_key(f"{number} {unit}"), (obs,)))
+            for value, corrected_from in self._strengths(text):
+                evidence.append(Evidence("strength", value, (obs,), corrected_from))
             for match in NDC_RE.findall(text):
                 evidence.append(Evidence("ndc", re.sub(r"^NDC[\s:#]*", "", match), (obs,)))
 
         # A number and its unit split across two OCR results: "200" + "mg"
         for first, second in zip(observations, observations[1:]):
-            number = re.search(r"(\d+(?:\.\d+)?)$", first.text.strip())
             unit = re.match(r"(MG|MCG|G|ML)\b", second.text.strip().upper())
-            if number and unit:
+            if not unit:
+                continue
+            number = re.search(r"(\d+(?:\.\d+)?)$", first.text.strip())
+            if number:
                 evidence.append(Evidence("strength", strength_key(f"{number.group(1)} {unit.group(1)}"), (first, second)))
+                continue
+            confused = re.search(r"(?<![A-Z0-9.])(\d[0-9O]*(?:\.[0-9O]+)?)$", first.text.strip().upper())
+            if confused and "O" in confused.group(1):
+                value = strength_key(f"{confused.group(1).replace('O', '0')} {unit.group(1)}")
+                evidence.append(Evidence("strength", value, (first, second), f"{confused.group(1)} {unit.group(1)}"))
+
+        # Store brands print "Compare to Advil(R) active ingredient". A brand
+        # named in that text is not the product's brand, and OCR often splits
+        # the badge into several results, so once "COMPARE" is seen anywhere no
+        # brand phrase is trusted as the product's brand.
+        if any("COMPARE" in name_key(o.text).split() for o in observations):
+            evidence = [Evidence("compared_brand", e.value, e.observations) if e.kind == "brand" else e
+                        for e in evidence]
         return evidence
 
     # Evidence -> catalog record positions
@@ -274,7 +336,7 @@ class ProductMatcher:
         all_positions, all_conflicts = self._narrow(evidence, ("brand", "ingredient", "strength", "ndc"))
 
         if not (text_positions or all_positions):
-            no_evidence = not any(e.kind != "strength" for e in evidence)
+            no_evidence = not any(e.kind not in ("strength", "brand_hint", "compared_brand") for e in evidence)
             return MatchResult(Status.NO_MATCH, Level.NONE, [], evidence, all_conflicts, 0.0,
                                "no product evidence matched the catalog" if no_evidence
                                else "product evidence matched no catalog record", ignored=ignored)
@@ -285,7 +347,17 @@ class ProductMatcher:
             return package_result
 
         positions = text_positions or all_positions
-        return self._decide_formulation(self._group(sorted(positions), evidence), evidence, all_conflicts, ignored)
+        candidates = self._group(sorted(positions), evidence)
+
+        # Would the candidates differ without OCR-corrected evidence? Then the
+        # decision depends on a correction and can't be VERIFIED.
+        decisive_correction = False
+        if any(e.corrected_from for e in evidence):
+            plain = [e for e in evidence if not e.corrected_from]
+            plain_positions, _ = self._narrow(plain, ("brand", "ingredient", "strength"))
+            groups = lambda ps: {_formulation_key(self._records[i]) for i in ps}
+            decisive_correction = groups(plain_positions or all_positions) != groups(positions)
+        return self._decide_formulation(candidates, evidence, all_conflicts, ignored, decisive_correction)
 
     def _group(self, positions, evidence):
         groups = defaultdict(list)
@@ -295,6 +367,7 @@ class ProductMatcher:
         observed_ingredients = [ingredient_key(e.value) for e in evidence if e.kind == "ingredient"]
         observed_strengths = {e.value for e in evidence if e.kind == "strength"}
         observed_words = {w for e in evidence if e.kind == "brand" for w in e.value.split()}
+        hints = [set(e.value.split()) for e in evidence if e.kind == "brand_hint"]
 
         candidates = []
         for records in groups.values():
@@ -314,8 +387,11 @@ class ProductMatcher:
                                        and any(_compatible(o, ingredient_key(n)) for o in observed_ingredients)],
                 missing_strengths=[s for _, s in ingredients if strength_key(s) not in observed_strengths],
                 missing_brand_words=missing_brand_words,
+                brand_hint_records=sum(1 for r in records
+                                       if any(h <= set(name_key(r["brand_name"]).split()) for h in hints)),
             ))
-        candidates.sort(key=lambda c: (-len(c.records), c.ingredients))
+        # Order only: candidates matching a brand hint first, then by size
+        candidates.sort(key=lambda c: (c.brand_hint_records == 0, -len(c.records), c.ingredients))
         return candidates
 
     def _strong(self, items):
@@ -355,7 +431,7 @@ class ProductMatcher:
             ignored=ignored,
         )
 
-    def _decide_formulation(self, candidates, evidence, conflicts, ignored):
+    def _decide_formulation(self, candidates, evidence, conflicts, ignored, decisive_correction=False):
         brands = [e for e in evidence if e.kind == "brand"]
         used = [e for e in evidence if e.kind != "ndc"]
         confidence = min((e.confidence for e in used), default=min(e.confidence for e in evidence))
@@ -367,6 +443,8 @@ class ProductMatcher:
             blockers.append(f"{len(candidates)} formulations remain")
         if not brands:
             blockers.append("no distinctive brand observed")
+        if decisive_correction:
+            blockers.append("candidates depend on OCR-corrected text")
 
         if len(candidates) == 1:
             candidate = candidates[0]
@@ -378,10 +456,16 @@ class ProductMatcher:
                 blockers.append("active ingredients observed only by base name: " + ", ".join(candidate.base_only_ingredients))
             if candidate.missing_strengths:
                 blockers.append("strengths not observed: " + ", ".join(candidate.missing_strengths))
+            plain_strengths = {e.value for e in evidence if e.kind == "strength" and not e.corrected_from}
+            corrected_only = [s for _, s in candidate.ingredients
+                              if s not in candidate.missing_strengths and strength_key(s) not in plain_strengths]
+            if corrected_only:
+                blockers.append("strengths read only through OCR correction: " + ", ".join(corrected_only))
             required = brands + [
                 e for e in evidence
                 if (e.kind == "ingredient" and ingredient_key(e.value) in {ingredient_key(n) for n, _ in candidate.ingredients})
-                or (e.kind == "strength" and e.value in {strength_key(s) for _, s in candidate.ingredients})
+                or (e.kind == "strength" and not e.corrected_from
+                    and e.value in {strength_key(s) for _, s in candidate.ingredients})
             ]
             if required and not self._strong(required):
                 blockers.append(f"evidence below verify confidence {self.verify_confidence}")
@@ -393,5 +477,11 @@ class ProductMatcher:
                     ignored=ignored,
                 )
 
+        compared = sorted({e.value for e in evidence if e.kind == "compared_brand"})
+        if compared:
+            blockers.append(f"{', '.join(compared)} appears in store-brand comparison text (not used as the brand)")
+        hints = sorted({e.value for e in evidence if e.kind == "brand_hint"})
+        if hints:
+            blockers.append(f"brand hint {', '.join(hints)} observed (not used for verification)")
         return MatchResult(Status.UNCERTAIN, Level.NONE, candidates, evidence, conflicts,
                            confidence, "; ".join(blockers), ignored=ignored)
