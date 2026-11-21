@@ -5,3 +5,5 @@ vision/ocr_test.jpg
 vision/products/data/*
 !vision/products/data/verified_upcs.json
 web/certs/
+# Local research photographs; retained locally, never automatically staged.
+VA-photos/

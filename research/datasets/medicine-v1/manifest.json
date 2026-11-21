@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "dataset_id": "medicine-v1",
+  "images": [
+    {
+      "id": "UIC-Front-Bottle",
+      "path": "images/55cf4be9356a9f0ebc35165650f61387e91114d198ebf738afcf402700d42b43.jpg",
+      "physical_product_id": "Bottle",
+      "category": "non_medicine_bottle",
+      "capture_device": "Chrome",
+      "input_kind": "Full_frame",
+      "roi": null,
+      "provenance": {
+        "source": "Camera",
+        "local_evaluation_permitted": true
+      },
+      "sha256": "55cf4be9356a9f0ebc35165650f61387e91114d198ebf738afcf402700d42b43",
+      "truth": {
+        "confirmed": true,
+        "negative": true,
+        "readable": true,
+        "object_category": "Bottle",
+        "brand": "UIC",
+        "dosage_form": null,
+        "ingredients": [],
+        "exact_product": null,
+        "confirmed_by": "bottle",
+        "confirmation_source": "phsycial",
+        "confirmation_date": "2026-11-12"
+      },
+      "annotation_review": {
+        "ingredient_pairs_checked": false,
+        "privacy_checked": true
+      }
+    }
+  ]
+}

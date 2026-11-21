@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "dataset_id": "medicine-v1-latency-only",
+  "images": [{
+    "id": "existing-equate-latency-crop",
+    "path": "../../../vision/advil_front.jpg",
+    "category": "single_ingredient",
+    "category_note": "Provisional grouping from existing annotation; not confirmed ground truth.",
+    "roi": [585, 0, 1315, 1080],
+    "provenance": {
+      "source": "Existing user project photograph; user confirmed local latency-only evaluation on 2026-11-12",
+      "local_evaluation_permitted": true
+    },
+    "truth": {"confirmed": false, "object_category": null, "brand": null, "ingredients": [], "exact_product": null, "negative": null, "readable": null},
+    "notes": "Fixed 730x1080 test ROI used in earlier local endpoint checks. Not a newly detected YOLO box or an independently labeled example. Exclude from all accuracy scoring."
+  }]
+}
