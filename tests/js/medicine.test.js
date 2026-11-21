@@ -191,6 +191,7 @@ test('app integration keeps detection at 640, prepares native snapshot, automati
     AskAI:require('../../web/static/ask-ai.js'),View:require('../../web/static/view.js'),
     MedicineCandidates:require('../../web/static/medicine-candidates.js'),
     MedicineCapture:require('../../web/static/medicine-capture.js'),MedicineScanner, MedicineIdentification:require('../../web/static/medicine-identification.js'),
+    MedicineSpeech:require('../../web/static/medicine-speech.js'),
     URL:{createObjectURL:()=> 'blob:preview',revokeObjectURL:url=>revoked.push(url)},
     Blob,FormData,AbortController,performance:{now:()=>clock},
     setTimeout:()=>1,clearTimeout(){},crypto:{},fetch:async(url,options)=>{

@@ -77,7 +77,8 @@ test('app wiring captures the phone preview, keeps awareness, and gates its voic
   const context = vm.createContext({document, window, Announcer: require('../../web/static/announcer.js'),
     AskAI, UI: require('../../web/static/ui.js'), Timing: require('../../web/static/timing.js'), MedicineCandidates: require('../../web/static/medicine-candidates.js'),
     MedicineCapture: require('../../web/static/medicine-capture.js'),
-    MedicineScanner: require('../../web/static/medicine-scanner.js'), MedicineIdentification:require('../../web/static/medicine-identification.js'), View:{}, navigator:{}, console, Blob, FormData, AbortController, setTimeout, clearTimeout,
+    MedicineScanner: require('../../web/static/medicine-scanner.js'), MedicineIdentification:require('../../web/static/medicine-identification.js'),
+    MedicineSpeech: require('../../web/static/medicine-speech.js'), View:{}, navigator:{}, console, Blob, FormData, AbortController, setTimeout, clearTimeout,
     performance, fetch: async (url, options) => {
       requests.push([url, options]);
       return {ok:true, json:async () => url === '/health' ? {} : {description:'A chair.'}};

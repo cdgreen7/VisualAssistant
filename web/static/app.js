@@ -317,6 +317,16 @@ function disableVoice() {
   updateVoiceButtons();
 }
 
+// Medicine results (medicine-speech.js): spoken only while voice is on, never over Ask AI,
+// and an automatic result is not repeated. force: the user pressed Identify.
+const medicineSpeech = new MedicineSpeech.MedicineSpeech(speaker);
+function sayMedicine(body, force) {
+  const text = medicineSpeech.announce(body, { force, blocked: askAI.active });
+  if (!text) return;
+  $("voice-last").textContent = "Said: " + text;
+  log("Voice: " + text);
+}
+
 // One detection result in, at most one spoken phrase out.
 function announce(detections, trace) {
   const text = announcements.update(detections, performance.now(), speaker.canSpeak && !askAI.active);
@@ -653,6 +663,7 @@ function renderIdentify(body) {
     if (fallbackBarcode) nodes.push(...barcodeNote(), captureFrontLabelButton("Capture front label again"));
     show(...nodes);
     log("Identify: no bottle detected");
+    sayMedicine(body, true);
     return;
   }
   const match = body.match, card = el("div", null, "card");
@@ -701,6 +712,7 @@ function renderIdentify(body) {
   if (match.status === "UNCERTAIN" || match.status === "NO_MATCH") card.append(productResearchCard(body, fallbackBarcode || ""));
   show(card, ocrCard);
   log(`Identify: ${match.status}, ${match.candidate_count} candidate(s), ${body.ocr.length} text item(s)`);
+  sayMedicine(body, true);
 }
 
 // AI uses the same phone preview and Speaker, with an independent request state.
@@ -792,6 +804,7 @@ const medicineIdentification = new MedicineIdentification({
     if (body.match.status === "UNCERTAIN" || body.match.status === "NO_MATCH") nodes.push(productResearchCard(body));
     $("medicine-evidence").replaceChildren(...nodes);
     $("medicine-status").textContent = body.match.status + " · " + body.formulation;
+    sayMedicine(body, false);
   },
 });
 
