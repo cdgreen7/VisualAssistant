@@ -92,7 +92,10 @@ class RealCatalogCorrectionTests(unittest.TestCase):
         result = self.match(("equate", 1.00), ("Ibuprofen", 1.00), ("2oomg", 0.32), ("mg", 0.84),
                             ("Tablets", 1.00), ("Pain", 1.00), ("Reliever/", 0.67), ("Fever", 1.00), ("(NSAID)", 0.99))
         self.assertEqual(result.status, Status.UNCERTAIN)
-        self.assertEqual(len(result.candidates), 7)  # was 18 before the strength correction
+        # 18 before the strength correction; 7 until amounts matched regardless of
+        # denominator, which correctly keeps 200 mg/10mL suspension and two FDA
+        # formatting variants (200 mg/1201, 200 mg/1000mg) as candidates.
+        self.assertEqual(len(result.candidates), 10)
         self.assertIn("candidates depend on OCR-corrected text", result.reason)
         self.assertIn("brand hint EQUATE", result.reason)
 
