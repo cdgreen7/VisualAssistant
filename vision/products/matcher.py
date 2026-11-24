@@ -19,16 +19,8 @@ So "ADVIL + IBUPROFEN + 200 mg" keeps Advil PM and cold/sinus products as
 competitors and stays UNCERTAIN.
 
 There is no fuzzy matching in V1: "ADV1L" is not read as "ADVIL". An
-observed base name ("DIPHENHYDRAMINE", or "CETIRIZINE" of a salt-only catalog
-name) keeps salt forms as candidates but can't verify them; the salt must be
-read. "HCl" and "HBr" are expanded; "HCI", OCR's reading of HCl in many fonts,
-is not, so it leaves only the base name.
-
-Packaging vocabulary (Drug Facts headings and purposes such as ANTIHISTAMINE,
-front-panel claims such as OUTDOOR ALLERGIES, dosage-form words), English
-function words, salt abbreviations and words common in FDA generic names are
-never a brand's distinctive word. A common substance word (WATER, SODIUM) read
-beside another ingredient is only an "ingredient_hint".
+observed base name ("DIPHENHYDRAMINE") keeps salt forms as candidates but
+can't verify them; the salt must be read.
 
 OCR corrections are limited to a letter O inside a numeric strength
 ("2oomg" -> 200mg). Corrected evidence keeps its original text, can narrow
@@ -37,20 +29,6 @@ candidates, but never satisfies VERIFIED on its own.
 Store-brand words used by few labelers (EQUATE) become "brand_hint"
 evidence, and brands named in "Compare to ..." text become "compared_brand"
 evidence. Neither narrows candidates or counts toward VERIFIED.
-
-A word that is part of any labeler (company) name is never the distinctive
-word of a brand: a manufacturer or distributor name (BAYER, KROGER) is printed
-on all of that company's products, so it can't tell them apart. Such a phrase
-can still be a "brand_hint".
-
-Superset guard: brand evidence narrows candidates by FDA brand-name strings,
-which don't contain everything printed on a package. Before VERIFIED/
-FORMULATION, related products (sharing a distinctive word with the main part
-of a verified record's brand name, before any comma) are checked. If one
-contains the verified formulation plus more active ingredients and no observed
-distinctive brand word rules it out, the result stays UNCERTAIN. E.g. BAYER +
-naproxen 220 mg must not exclude Aleve PM. This is an extra conservative check,
-not a search for every combination product in the catalog.
 """
 import re
 from collections import defaultdict
@@ -81,59 +59,7 @@ MAX_PHRASE_WORDS = 6
 
 STOP_WORDS = {"AND", "OF", "THE", "WITH", "FOR", "IN", "TO", "A", "AN", "OR", "PLUS"}
 UNITS = {"MG", "MCG", "G", "ML"}
-# Salt abbreviations printed on labels; expanded like a spelling, not an OCR correction
-SYNONYMS = {"HCL": "HYDROCHLORIDE", "HBR": "HYDROBROMIDE"}
-
-# OCR reads "HCl" as "HCI": I and l look identical in many label fonts. HCI is
-# never expanded, so "CETIRIZINE HCI" only supports the base name CETIRIZINE,
-# which can't verify (see base names below).
-AMBIGUOUS_SALT_WORDS = frozenset({"HCI"})
-
-# Words printed on OTC packaging that describe a product rather than name it:
-# Drug Facts headings and purpose statements (21 CFR 201.66), common front-panel
-# claims and dosage-form words. Category vocabulary, not product names. They
-# are never a brand's distinctive word, even where a labeler uses one as an
-# exact brand name ("Antihistamine", "Outdoor Allergies").
-PACKAGING_VOCABULARY = frozenset("""
-    DRUG FACTS ACTIVE INACTIVE INGREDIENT INGREDIENTS PURPOSE PURPOSES USE USES WARNING WARNINGS
-    DIRECTIONS INFORMATION QUESTIONS COMMENTS ALERT KEEP REACH CHILDREN ADULTS DOCTOR PHARMACIST ASK STOP
-    ANTIHISTAMINE ANTIHISTAMINES ANALGESIC ANESTHETIC ANTACID ANTIDIARRHEAL ANTIEMETIC ANTIFUNGAL
-    ANTISEPTIC ANTITUSSIVE DECONGESTANT EXPECTORANT LAXATIVE NSAID RELIEVER RELIEVERS REDUCER
-    SUPPRESSANT SOFTENER PROTECTANT SUNSCREEN SLEEP AID
-    ALLERGY ALLERGIES INDOOR OUTDOOR SNEEZING RUNNY NOSE ITCHY WATERY EYES THROAT HIVES HEARTBURN
-    TOOTHACHE HEADACHE FEVER PAIN ACHES COUGH CONGESTION CHEST SINUS PRESSURE COLD FLU MUCUS NASAL
-    RELIEF RELIEVES NIGHTTIME DAYTIME NON DROWSY NONDROWSY STRENGTH EXTRA MAXIMUM REGULAR ORIGINAL
-    PRESCRIPTION ACTUAL SIZE HOUR HOURS
-    TABLET TABLETS CAPLET CAPLETS GELCAP GELCAPS SOFTGEL SOFTGELS LIQUIGEL LIQUIGELS CAPSULE CAPSULES
-    CHEWABLE CHEWABLES COATED
-""".split())
-# English function words from label sentences ("if you HAD ...")
-FUNCTION_WORDS = frozenset("""
-    ON BY AT AS IF IS ARE BE BEEN HAS HAVE HAD DO DOES NOT NO YOU YOUR IT ITS THIS THAT THESE ANY ALL
-    MORE THAN WHEN WHILE MAY EACH EVERY PER
-""".split())
-# A word in at least this many FDA generic_name fields, from at least this many
-# labelers, is descriptive (NSAID: 23 records/10 labelers; HBR: 1109/184), not a
-# brand word. The labeler count keeps brands that one company also puts in its
-# generic names (DIAL: 11 records, 1 labeler). Prototype values.
-MIN_GENERIC_NAME_COUNT = 10
-MIN_GENERIC_NAME_LABELERS = 3
-
-# Final words of salt forms. "CETIRIZINE HYDROCHLORIDE" gives the base name
-# CETIRIZINE, which is extracted as base-only evidence: it keeps the salt forms
-# as candidates but never verifies them.
-SALT_WORDS = frozenset("""
-    HYDROCHLORIDE HYDROBROMIDE CITRATE MALEATE SULFATE SUCCINATE TARTRATE BITARTRATE TANNATE PHOSPHATE
-    ACETATE BESYLATE MESYLATE FUMARATE GLUCONATE POLISTIREX SODIUM POTASSIUM CALCIUM MAGNESIUM
-""".split())
-
-# Single-word substances that labels mention outside the active ingredients
-# ("No water needed", "each tablet contains: sodium 20 mg"). Beside another
-# ingredient they become "ingredient_hint" evidence: reported, never used to
-# narrow, conflict or verify. Alone they remain ingredient evidence.
-COMMON_SUBSTANCE_WORDS = frozenset("""
-    WATER SODIUM POTASSIUM CALCIUM MAGNESIUM ALUMINUM ZINC IRON ALCOHOL CORN SUGAR
-""".split())
+SYNONYMS = {"HCL": "HYDROCHLORIDE"}
 
 # Not preceded by a digit, "." or letter O, so fragments of a misread number
 # ("1O.5 MG" -> "5 MG", "BO0MG" -> "0MG") are not read as strengths.
@@ -259,48 +185,23 @@ class ProductMatcher:
         self._brand_word_labelers = {word: len(labelers) for word, labelers in brand_word_labelers.items()}
 
         self._ingredient_index = defaultdict(set)
-        # Keyed by the amount only ("15mg" for "15 mg/1" and "15 mg/5mL"): OCR often
-        # reads an amount without its denominator, which must not exclude a liquid.
-        # Verification still requires the full catalog strength (missing_strengths).
         self._strength_index = defaultdict(set)
         for i, record in enumerate(self._records):
             for ingredient in record["active_ingredients"]:
                 self._ingredient_index[ingredient_key(ingredient["name"])].add(i)
-                self._strength_index[strength_key(ingredient["strength"]).split("/")[0]].add(i)
+                self._strength_index[strength_key(ingredient["strength"])].add(i)
 
-        self._generic_words = set(STOP_WORDS) | UNITS | FUNCTION_WORDS | PACKAGING_VOCABULARY
-        self._generic_words |= set(SYNONYMS) | AMBIGUOUS_SALT_WORDS
+        self._generic_words = set(STOP_WORDS) | UNITS
         for key in self._ingredient_index:
             self._generic_words.update(key.split())
-        generic_name_counts, generic_name_labelers = defaultdict(int), defaultdict(set)
         for record in self._records:
             self._generic_words.update(name_key(record["dosage_form"]).split())
-            for word in set(name_key(record["generic_name"]).split()):
-                generic_name_counts[word] += 1
-                generic_name_labelers[word].add(name_key(record["labeler_name"]))
-        self._generic_words |= {word for word, n in generic_name_counts.items()
-                                if n >= MIN_GENERIC_NAME_COUNT and len(generic_name_labelers[word]) >= MIN_GENERIC_NAME_LABELERS}
-
-        # Base names of salt forms ("CETIRIZINE" of "CETIRIZINE HYDROCHLORIDE") that
-        # are not themselves catalog ingredient names; observed alone, they are base-only.
-        self._ingredient_bases = set()
-        for key in self._ingredient_index:
-            words = key.split()
-            base = " ".join(words[:-1])
-            if (len(words) >= 2 and words[-1] in SALT_WORDS and base not in self._ingredient_index
-                    and all(w.isalpha() and len(w) >= 4 and w not in COMMON_SUBSTANCE_WORDS for w in words[:-1])):
-                self._ingredient_bases.add(base)
-
-        # Words of company names (BAYER of "Bayer HealthCare LLC"): never distinctive
-        self._labeler_words = {word for record in self._records for word in name_key(record["labeler_name"]).split()}
-        # Per-record formulation, for the superset guard
-        self._formulations = [_formulation_key(record) for record in self._records]
 
     # Observations -> evidence
 
     def _is_distinctive_brand(self, phrase):
         return any(
-            word not in self._generic_words and not word.isdigit() and word not in self._labeler_words
+            word not in self._generic_words and not word.isdigit()
             and len(self._brand_word_index[word]) <= self.max_brand_word_frequency
             for word in phrase.split()
         )
@@ -345,8 +246,7 @@ class ProductMatcher:
             evidence += [Evidence("brand", p, (obs,)) for p in brands]
             evidence += [Evidence("brand_hint", p, (obs,)) for p in self._phrases(words, self._is_brand_hint)]
 
-            ingredients = self._phrases(words, lambda p: ingredient_key(p) in self._ingredient_index
-                                        or ingredient_key(p) in self._ingredient_bases)
+            ingredients = self._phrases(words, lambda p: ingredient_key(p) in self._ingredient_index)
             evidence += [Evidence("ingredient", p, (obs,)) for p in ingredients]
 
             for value, corrected_from in self._strengths(text):
@@ -367,13 +267,6 @@ class ProductMatcher:
             if confused and "O" in confused.group(1):
                 value = strength_key(f"{confused.group(1).replace('O', '0')} {unit.group(1)}")
                 evidence.append(Evidence("strength", value, (first, second), f"{confused.group(1)} {unit.group(1)}"))
-
-        # "No water needed" beside "Cetirizine HCl 10 mg": a common substance word
-        # is not trusted as an active ingredient when a specific one was read.
-        if any(e.kind == "ingredient" and ingredient_key(e.value) not in COMMON_SUBSTANCE_WORDS for e in evidence):
-            evidence = [Evidence("ingredient_hint", e.value, e.observations)
-                        if e.kind == "ingredient" and ingredient_key(e.value) in COMMON_SUBSTANCE_WORDS else e
-                        for e in evidence]
 
         # Store brands print "Compare to Advil(R) active ingredient". A brand
         # named in that text is not the product's brand, and OCR often splits
@@ -443,8 +336,7 @@ class ProductMatcher:
         all_positions, all_conflicts = self._narrow(evidence, ("brand", "ingredient", "strength", "ndc"))
 
         if not (text_positions or all_positions):
-            no_evidence = not any(e.kind not in ("strength", "brand_hint", "compared_brand", "ingredient_hint")
-                                  for e in evidence)
+            no_evidence = not any(e.kind not in ("strength", "brand_hint", "compared_brand") for e in evidence)
             return MatchResult(Status.NO_MATCH, Level.NONE, [], evidence, all_conflicts, 0.0,
                                "no product evidence matched the catalog" if no_evidence
                                else "product evidence matched no catalog record", ignored=ignored)
@@ -539,36 +431,6 @@ class ProductMatcher:
             ignored=ignored,
         )
 
-    @staticmethod
-    def _brand_head(brand_name):
-        """Brand-name words before any comma: FDA brand strings often append a
-        distributor or pack tag ("Motrin IB, CVP HEALTH"), which is not a product line."""
-        return name_key(str(brand_name or "").split(",")[0]).split()
-
-    def _superset_competitor(self, candidate, evidence):
-        """A related record that brand evidence excluded although it contains the
-        candidate's formulation plus more active ingredients, or None.
-
-        Related: its brand name shares a distinctive word with the main part of a
-        verified record's brand name (BAYER ALEVE -> ALEVE PM). Its exclusion is
-        explained only when its brand contains an observed distinctive brand word
-        (an observed MOTRIN IB rules out MOTRIN PM). Not exhaustive: unrelated
-        products are left to the existing brand narrowing.
-        """
-        formulation = _formulation_key(candidate.records[0])
-        observed = {word for e in evidence if e.kind == "brand" for word in e.value.split()
-                    if self._is_distinctive_brand(word)}
-        related = set()
-        for record in candidate.records:
-            for word in self._brand_head(record["brand_name"]):
-                if self._is_distinctive_brand(word):
-                    related |= self._brand_word_index.get(word, set())
-        for i in sorted(related):
-            if formulation < self._formulations[i] \
-                    and not observed & set(self._brand_head(self._records[i]["brand_name"])):
-                return self._records[i]
-        return None
-
     def _decide_formulation(self, candidates, evidence, conflicts, ignored, decisive_correction=False):
         brands = [e for e in evidence if e.kind == "brand"]
         used = [e for e in evidence if e.kind != "ndc"]
@@ -593,9 +455,7 @@ class ProductMatcher:
             if candidate.base_only_ingredients:
                 blockers.append("active ingredients observed only by base name: " + ", ".join(candidate.base_only_ingredients))
             if candidate.missing_strengths:
-                # Some catalog ingredients have no strength (None); that used to raise TypeError here
-                blockers.append("strengths not observed: "
-                                + ", ".join(s or "(not listed in catalog)" for s in candidate.missing_strengths))
+                blockers.append("strengths not observed: " + ", ".join(candidate.missing_strengths))
             plain_strengths = {e.value for e in evidence if e.kind == "strength" and not e.corrected_from}
             corrected_only = [s for _, s in candidate.ingredients
                               if s not in candidate.missing_strengths and strength_key(s) not in plain_strengths]
@@ -610,15 +470,6 @@ class ProductMatcher:
             if required and not self._strong(required):
                 blockers.append(f"evidence below verify confidence {self.verify_confidence}")
             if not blockers:
-                # Last, additional check; it can only keep a result UNCERTAIN
-                competitor = self._superset_competitor(candidate, evidence)
-                if competitor is not None:
-                    extra = sorted(name for name, _ in self._formulations[self._position[competitor["product_id"]]]
-                                   - _formulation_key(candidate.records[0]))
-                    blockers.append(
-                        f"related product {competitor['brand_name']!r} ({competitor['labeler_name']}) has this "
-                        f"formulation plus {', '.join(extra)}, which was not observed, and no observed brand rules it out")
-            if not blockers:
                 return MatchResult(
                     Status.VERIFIED, Level.FORMULATION, candidates, evidence, conflicts,
                     min(e.confidence for e in required),
@@ -632,8 +483,5 @@ class ProductMatcher:
         hints = sorted({e.value for e in evidence if e.kind == "brand_hint"})
         if hints:
             blockers.append(f"brand hint {', '.join(hints)} observed (not used for verification)")
-        substances = sorted({e.value for e in evidence if e.kind == "ingredient_hint"})
-        if substances:
-            blockers.append(f"{', '.join(substances)} read beside other ingredients (not used as an active ingredient)")
         return MatchResult(Status.UNCERTAIN, Level.NONE, candidates, evidence, conflicts,
                            confidence, "; ".join(blockers), ignored=ignored)
