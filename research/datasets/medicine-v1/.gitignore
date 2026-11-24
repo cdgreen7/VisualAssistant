@@ -1,6 +1,0 @@
-images/*
-!images/.gitkeep
-*.lock
-originals/
-derived/
-drafts.json
