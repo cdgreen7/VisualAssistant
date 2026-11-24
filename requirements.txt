@@ -3,3 +3,6 @@ ultralytics
 easyocr
 pytest
 zxing-cpp
+flask
+
+Pillow

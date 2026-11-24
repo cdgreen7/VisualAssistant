@@ -9,6 +9,7 @@ from vision.identification import identify_detection, format_identification
 from vision.ocr import TextRecognizer
 from vision.products.catalog import ProductCatalog
 from vision.products.matcher import ProductMatcher
+from vision.products.upc_registry import RegistryError, UpcRegistry
 
 FDA_CACHE = "vision/products/data/otc_ndc_2026-10-30.json"
 
@@ -16,12 +17,16 @@ camera = open_camera()
 detector = ObjectDetector()
 
 # Expensive objects are created once; OCR only runs when "i" is pressed
-recognizer = matcher = catalog = None
+recognizer = matcher = catalog = upc_registry = None
 if os.path.exists(FDA_CACHE):
     print("Loading OCR model and FDA catalog...")
     recognizer = TextRecognizer()
     catalog = ProductCatalog.from_file(FDA_CACHE)
     matcher = ProductMatcher(catalog)
+    try:
+        upc_registry = UpcRegistry.from_file()
+    except RegistryError as error:  # barcode scans still run, FDA lookup only
+        print(f"Local UPC registry not loaded: {error}")
     print("Ready. Press 'i' to identify the bottle in view, 'b' to scan a barcode, 'q' to quit.")
 else:
     print(f"FDA cache not found ({FDA_CACHE}); identification and barcode lookup disabled. "
@@ -46,12 +51,12 @@ def run_identification(frame, detections):
 
 
 def run_barcode_scan(frame):
-    """Print the barcodes in the clean frame and their FDA lookup (on 'b')."""
+    """Print the barcodes in the clean frame with their FDA and registry lookup (on 'b')."""
     if catalog is None:
         print("Barcode lookup unavailable: FDA cache not loaded.")
         return
     try:
-        print(format_scan(scan_frame(frame, catalog)))
+        print(format_scan(scan_frame(frame, catalog, upc_registry)))
     except Exception as error:  # keep the camera loop running
         print(f"Barcode scan failed: {error}")
 
