@@ -25,3 +25,7 @@ python main.py # or python3 main.py
 ```
 
 Press `q` to quit.
+
+## Development documentation
+
+Phase-by-phase notes (roadmap, changes, tests, findings and limitations) are in [docs/README.md](docs/README.md).

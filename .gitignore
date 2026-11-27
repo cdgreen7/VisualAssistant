@@ -3,3 +3,13 @@ __pycache__/
 .DS_Store
 vision/ocr_test.jpg
 vision/products/data/
+
+# Private photographs, credentials and generated research outputs (never committed)
+VA-photos/
+vision/advil_front.jpg
+web/certs/
+research/results/
+research/datasets/photos-v1/previews/
+research/datasets/medicine-v1/images/
+research/datasets/medicine-v1/drafts.json*
+*.tmp
