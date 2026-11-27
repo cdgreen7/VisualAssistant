@@ -51,7 +51,8 @@ class StatisticsTests(unittest.TestCase):
 
     def test_no_web_or_vision_language_components(self):
         self.assertEqual(set(benchmark.COMPONENTS),
-                         {"decode", "yolo", "crop", "ocr", "matcher", "barcode_decode", "barcode_lookup"})
+                         {"decode", "yolo", "crop", "ocr", "matcher", "barcode_decode", "barcode_lookup",
+                          "selection_baseline", "selection_weighted"})
         with open(benchmark.__file__) as f:
             source = f.read()
         for forbidden in ("from web", "import web", "import flask", "ollama", "qwen"):
@@ -91,6 +92,17 @@ class RunTests(unittest.TestCase):
         self.assertEqual((result["status"], result["max_side"]), ("ok", 80))
         self.assertEqual(result["image_sizes"], ["80x45", "80x60"])
         self.assertEqual(result["warm_outcomes"][0]["result"], {"barcodes": 0, "decoded": 0})
+
+    def test_target_selection_components_run_on_fixed_detections(self):
+        baseline = benchmark.run_component(self.args(trials=3), "selection_baseline", 0)
+        weighted = benchmark.run_component(self.args(trials=3), "selection_weighted", 0)
+        for result in (baseline, weighted):
+            self.assertEqual((result["status"], result["failures"]), ("ok", []))
+            self.assertEqual(result["warm_ms"]["n"], 3)                 # no image used: one call per trial
+            self.assertTrue(result["config"]["synthetic_input"])
+        from vision.identification import select_best_detection
+        expected = list(select_best_detection(benchmark.FIXED_DETECTIONS)["box"])
+        self.assertEqual(baseline["first_result"]["chosen_box"], expected)
 
     def test_timeout_is_recorded_not_raised(self):
         result = benchmark.run_component(self.args(timeout=0.01), "crop", 0)

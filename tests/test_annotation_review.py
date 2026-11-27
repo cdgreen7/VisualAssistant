@@ -199,12 +199,58 @@ class ReconcileTests(unittest.TestCase):
         self.assertTrue(all("physical_product_id grouping" in l["review"]["conflicts"] for l in labels))
 
 
+class IntendedTargetReviewTests(unittest.TestCase):
+    """Intent is recorded separately from the medicine box and compared by box geometry."""
+    def setUp(self):
+        self.data = Dataset()
+
+    def tearDown(self):
+        self.data.close()
+
+    def test_intent_rules(self):
+        self.assertIsNone(review.build_annotation(MEDICINE, BOXES, "x" * 64)["intended_target"])   # not known
+        self.assertEqual(review.build_annotation(dict(MEDICINE, intended_target=1), BOXES, "x" * 64)["intended_target"], 1)
+        self.assertEqual(review.build_annotation(dict(MEDICINE, intended_target="none"), BOXES, "x" * 64)
+                         ["intended_target"], "none")
+        for bad in (2, -1, True, "medicine"):
+            with self.assertRaises(ValueError):
+                review.build_annotation(dict(MEDICINE, intended_target=bad), BOXES, "x" * 64)
+        with self.assertRaises(ValueError):                                      # artwork has no boxes to point at
+            review.build_annotation(dict(MEDICINE, intended_target=0), None, "x" * 64)
+
+    def test_same_intended_box_in_a_different_order_agrees(self):
+        self.data.add("RJ", "front", answers=dict(MEDICINE, intended_target=1))    # the other bottle
+        # TM drew the boxes in the opposite order, so the same physical box is number 0 for TM
+        swapped = [{"role": "other_bottle", "box": [401, 51, 600, 650]}, {"role": "medicine", "box": [102, 198, 302, 602]}]
+        self.data.add("TM", "front", answers=dict(MEDICINE, intended_target=0), boxes=swapped)
+        labels, report = self.data.reconcile()
+        self.assertEqual(report, [])
+        front = labels[0]
+        self.assertEqual(front["review"]["status"], "REVIEWED")
+        self.assertEqual(front["target_boxes"][front["intended_target"]]["role"], "other_bottle")
+        self.assertEqual(evaluate.validate_label(front), [])
+
+    def test_different_or_unknown_intent_is_a_conflict(self):
+        self.data.add("RJ", "front", answers=dict(MEDICINE, intended_target=0))
+        self.data.add("TM", "front", answers=dict(MEDICINE, intended_target=1))
+        labels, _ = self.data.reconcile()
+        self.assertEqual(labels[0]["review"]["conflicts"], ["intended_target"])
+        self.data.add("TM", "front", answers=MEDICINE, replace=True)              # TM doesn't know the intent
+        labels, _ = self.data.reconcile()
+        self.assertEqual(labels[0]["review"]["conflicts"], ["intended_target"])
+
+    def test_single_reviewer_without_intent_leaves_it_unannotated(self):
+        self.data.add("RJ", "front")
+        labels, _ = self.data.reconcile()
+        self.assertIsNone(labels[0]["intended_target"])
+
+
 class InteractiveTests(unittest.TestCase):
     def test_annotate_with_scripted_answers_and_boxes(self):
         data = Dataset()
         try:
             answers = iter(["y", "P1", "y", "y", "Ibuprofen Tablets", "equate", "Ibuprofen | 200 mg", "",
-                            "", "681131699372", "equate", "Ibuprofen", "", "y"])
+                            "", "681131699372", "equate", "Ibuprofen", "", "7", "0", "y"])   # "7": not a box, asked again
             drawn = iter([[[100, 200, 300, 600]], [[400, 50, 600, 650]]])
             with contextlib.redirect_stdout(io.StringIO()):
                 path = review.annotate(data.labels_path, "front", "RJ", ask=lambda prompt: next(answers),
@@ -215,6 +261,7 @@ class InteractiveTests(unittest.TestCase):
             self.assertEqual(saved["ingredients"], [["Ibuprofen", "200 mg"]])
             self.assertEqual(saved["visible_text"], ["equate", "Ibuprofen"])
             self.assertEqual(saved["image_sha256"], data.sha("front"))
+            self.assertEqual(saved["intended_target"], 0)
             preview = review.preview(data.labels_path, "front", "RJ", out_dir=os.path.join(data.folder.name, "p"))
             self.assertEqual(cv2.imread(preview).shape, (700, 700, 3))
         finally:

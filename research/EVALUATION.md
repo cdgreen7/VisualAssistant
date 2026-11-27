@@ -54,7 +54,8 @@ text; `full`; `truth_crop` = reviewed medicine box or artwork front panel;
 | Metric | Definition |
 |---|---|
 | YOLO bottle recall / medicine recall | annotated boxes matched one-to-one by a YOLO `bottle` box with IoU >= 0.5 |
-| Target selection | MEDICINE_SELECTED, WRONG_OBJECT_SELECTED, NO_BOTTLE_DETECTED (and, on non-medicine photos, NON_MEDICINE_SELECTED / NOTHING_SELECTED); also on the subset with several bottles |
+| Target selection | MEDICINE_SELECTED, WRONG_OBJECT_SELECTED, NO_BOTTLE_DETECTED (and, on non-medicine photos, NON_MEDICINE_SELECTED / NOTHING_SELECTED); also on the subset with several bottles. Since Phase 3 also for the original baseline and every method in `vision/target_selection.py` on the same detections (`selection_choices`, every image; `selection_by_method`, reviewed images) |
+| Intended target | Separate from medicine boxes: whether each method read the object the person meant (`intended_target`, recorded by reviewers as a box, `none` or unknown). Computed only for images whose intent was annotated; never inferred |
 | OCR | brand words, every ingredient, every strength (plain; with the matcher's O->0 correction) found in the OCR text |
 | Outcomes | CORRECT_VERIFIED, FALSE_VERIFIED, VERIFIED_PACKAGE_UNSCORED, UNCERTAIN, NO_MATCH, NO_REGION (yolo_crop found no bottle) |
 | Candidate recall | true formulation among the candidates |

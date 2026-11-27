@@ -11,9 +11,9 @@ it was tested and what is still unproven.
 
 | Phase | Goal | Status |
 |---|---|---|
-| [1. Matcher safety](phase-01-matcher-safety/README.md) | Restore the improved, more conservative medicine matcher with regression tests | Done. Commit `dffc40d` on branch `feature/matcher-safety-improvements` (pushed; no pull request yet; not in `main`) |
-| [2. Evaluation baseline](phase-02-evaluation-baseline/README.md) | Reproducible, review-gated measurement of detection, OCR and matching before changing the pipeline | Implemented on `feature/evaluation-baseline`; in review, not yet committed |
-| 3. Intelligent target selection | Read the medicine package rather than simply the most confident YOLO bottle (Phase 2 scores this as target selection) | Planned |
+| [1. Matcher safety](phase-01-matcher-safety/README.md) | Restore the improved, more conservative medicine matcher with regression tests | Done. Commit `dffc40d` (`feature/matcher-safety-improvements`); included in pull request #4; not yet in `main` |
+| [2. Evaluation baseline](phase-02-evaluation-baseline/README.md) | Reproducible, review-gated measurement of detection, OCR and matching before changing the pipeline | Done. Commit `d86243f` (`feature/evaluation-baseline`), pull request #4 (open) |
+| [3. Intelligent target selection](phase-03-target-selection/README.md) | Read the medicine package rather than simply the most confident YOLO bottle (Phase 2 scores this as target selection) | Implemented on `feature/intelligent-target-selection`: the original confidence selection stays the default, and the weighted method is opt-in. In review, not committed. Real-world benefit not yet shown: needs reviewed boxes and intended targets |
 | 4. Object tracking | Follow the same physical object from frame to frame | Planned |
 | 5. Frame quality assessment | Score frames (sharpness, size, exposure) so OCR runs on usable ones | Planned |
 | 6. Multi-frame evidence aggregation | Combine matcher evidence from several frames of one tracked package | Planned |
@@ -24,7 +24,7 @@ it was tested and what is still unproven.
 Phase 2 review workflow, and collection of new photographs and webcam clips. Each
 later phase is measured on reviewed data from this track.
 
-Phases 3–8 are plans, and each gets its own README only once it is implemented.
+Phases 4–8 are plans, and each gets its own README only once it is implemented.
 Restoring reverted research code in any phase (for example earlier tracking or UPC
 registry code) needs explicit approval; see the constraints below.
 
@@ -36,6 +36,7 @@ The approved system is a local Python application:
 |---|---|
 | Camera and display | OpenCV (`vision/camera.py`, `main.py`) |
 | Object detection | Ultralytics YOLO, `yolo26n.pt` (`vision/detector.py`) |
+| Target selection | highest-confidence bottle by default; geometric scoring opt-in (`vision/target_selection.py`) |
 | Text reading | EasyOCR (`vision/ocr.py`) |
 | Product identification | `ProductMatcher` on the local FDA NDC catalog from openFDA (`vision/products/`) |
 | Barcodes | zxing-cpp decoding and FDA catalog lookup (`vision/barcode.py`, `vision/products/barcode_lookup.py`) |
@@ -75,8 +76,8 @@ why), never as part of the current system.
 ```
 main (d6020fa)
  └─ Phase 1: feature/matcher-safety-improvements (dffc40d)
-     └─ Phase 2: feature/evaluation-baseline (branched from dffc40d)
-         └─ Phase 3  target selection      (measured by Phase 2 target-selection metrics)
+     └─ Phase 2: feature/evaluation-baseline (d86243f; pull request #4 carries Phases 1 and 2)
+         └─ Phase 3: feature/intelligent-target-selection (branched from d86243f)
              └─ Phase 4  object tracking
                  └─ Phase 5  frame quality assessment
                      └─ Phase 6  multi-frame aggregation (uses tracks from 4, frames chosen by 5)

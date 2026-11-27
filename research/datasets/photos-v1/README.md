@@ -69,6 +69,11 @@ other reviewer's file (`reviews/<name>.json`), `drafts.json`, the older
    every other bottle in the photo (the water bottle appears in all six iPhone
    photos). Drag a box, press ENTER or SPACE to keep it, ESC when finished. Draw
    tightly around the visible object, cap included.
+7. The intended target: which numbered box the person taking the photo meant the
+   system to read, `none` if nothing, or empty if you don't know. This is separate
+   from the medicine box (a photo can show two medicines, or the person may have
+   meant something else) and is never filled in from it. Only someone who knows
+   why the photo was taken can answer; leave it empty otherwise.
 
 Then, once both of you are done:
 
@@ -93,6 +98,7 @@ IoU >= 0.8; the stored box is the mean of the two.
 - [ ] Front-panel text for the front views (9766, advil_front).
 - [ ] Readable yes/no for every view; the side, back and top views may be "no".
 - [ ] Boxes for every bottle in every photo, including the water bottle in the background.
+- [ ] The intended target for each photo, if you know what it was taken to show.
 - [ ] `vision/advil_front.jpg` shows part of a person: decide whether it may be
       used and shared; it is never committed.
 

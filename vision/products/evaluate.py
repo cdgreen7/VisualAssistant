@@ -192,6 +192,11 @@ def validate_label(label):
         if not isinstance(boxes, list) or any(not isinstance(t, dict) or t.get("role") not in BOX_ROLES
                                               or not _valid_box(t.get("box")) for t in boxes):
             problems.append(f"target_boxes must be a list of {{role: {BOX_ROLES}, box: [x1, y1, x2, y2]}}")
+    intended = label.get("intended_target")
+    if intended is not None and intended != "none" and not (
+            isinstance(intended, int) and not isinstance(intended, bool) and isinstance(boxes, list)
+            and 0 <= intended < len(boxes)):
+        problems.append("intended_target must be null (not annotated), \"none\" or an index into target_boxes")
     if label.get("roi") is not None and not _valid_box(label["roi"]):
         problems.append("roi must be null or [x1, y1, x2, y2]")
     return problems
@@ -295,10 +300,8 @@ def match_boxes(truth, predicted, threshold=IOU_THRESHOLD):
     return sorted(matched)
 
 
-def target_selection(label, detections, threshold=IOU_THRESHOLD, class_name="bottle"):
-    """Which object main.py's select_best_detection would read."""
-    from vision.identification import select_best_detection
-    selected = select_best_detection(detections, class_name)
+def selection_outcome(label, selected, threshold=IOU_THRESHOLD):
+    """Outcome of reading `selected` (a detection or None) for this annotated label."""
     medicine = target_boxes(label, "medicine")
     if not medicine:
         return "NOTHING_SELECTED" if selected is None else "NON_MEDICINE_SELECTED"
@@ -309,14 +312,61 @@ def target_selection(label, detections, threshold=IOU_THRESHOLD, class_name="bot
     return "WRONG_OBJECT_SELECTED"
 
 
-def score_detection(label, detections, threshold=IOU_THRESHOLD, class_name="bottle"):
-    """Detection scores, or None when the label has no annotated boxes."""
+def intent_outcome(label, selected, threshold=IOU_THRESHOLD):
+    """Outcome against the annotated INTENDED target, or None when intent wasn't annotated.
+
+    The intended target is what the person meant the system to read, recorded by the
+    reviewers (label["intended_target"]: an index into target_boxes, or "none" when
+    nothing should be read). It is separate from the medicine boxes: a photo can show
+    two medicines, or the user can mean another object."""
+    intended = label.get("intended_target")
+    if intended is None:
+        return None
+    if intended == "none":
+        return "CORRECTLY_NOTHING" if selected is None else "UNINTENDED_SELECTED"
+    if selected is None:
+        return "NOTHING_SELECTED"
+    box = label["target_boxes"][intended]["box"]
+    return "INTENDED_SELECTED" if iou(selected["box"], box) >= threshold else "UNINTENDED_SELECTED"
+
+
+def target_selection(label, detections, threshold=IOU_THRESHOLD, class_name="bottle"):
+    """Which object main.py's default select_best_detection would read."""
+    from vision.identification import select_best_detection
+    return selection_outcome(label, select_best_detection(detections, class_name), threshold)
+
+
+ORIGINAL_BASELINE = "confidence_original"      # identification.select_best_detection, as main.py by default
+
+
+def selection_choices(detections, frame_size, methods=None, class_name="bottle"):
+    """{method: {"box", "index", "score"} or None}: the original baseline
+    (select_best_detection, no score) and every target-selection method, all on the same
+    detections. Descriptive: it says which box each method picks, not whether it's right."""
+    from vision.identification import select_best_detection
+    from vision.target_selection import METHODS, select_target
+    original = select_best_detection(detections, class_name)
+    out = {ORIGINAL_BASELINE: None if original is None else {
+        "box": list(original["box"]), "index": next(i for i, d in enumerate(detections) if d is original),
+        "score": None}}
+    for name, weights in (methods or METHODS).items():
+        selection = select_target(detections, frame_size, weights=weights, class_name=class_name)
+        chosen = selection.candidates[0] if selection.detection is not None else None
+        out[name] = None if chosen is None else {"box": list(chosen.detection["box"]), "index": chosen.index,
+                                                 "score": round(chosen.score, 6)}
+    return out
+
+
+def score_detection(label, detections, threshold=IOU_THRESHOLD, class_name="bottle", frame_size=None, methods=None):
+    """Detection scores, or None when the label has no annotated boxes. With frame_size,
+    also the outcome of every target-selection method on the same detections."""
     if label.get("target_boxes") is None:
         return None
     truth = label["target_boxes"]
     bottles = [d for d in detections if d["class_name"] == class_name]
     matched = {ti for ti, _, _ in match_boxes([t["box"] for t in truth], [list(d["box"]) for d in bottles], threshold)}
     medicine = [i for i, t in enumerate(truth) if t["role"] == "medicine"]
+    choices = None if frame_size is None else selection_choices(detections, frame_size, methods, class_name)
     return {
         "bottle_targets": len(truth),
         "bottles_found": len(matched),
@@ -326,6 +376,13 @@ def score_detection(label, detections, threshold=IOU_THRESHOLD, class_name="bott
         "unmatched_bottle_detections": len(bottles) - len(matched),
         "multiple_bottles": len(truth) > 1,
         "selection": target_selection(label, detections, threshold, class_name),
+        "intent_annotated": label.get("intended_target") is not None,
+        "selection_by_method": None if choices is None else {
+            name: selection_outcome(label, None if choice is None else {"box": choice["box"]}, threshold)
+            for name, choice in choices.items()},
+        "intent_by_method": None if choices is None or label.get("intended_target") is None else {
+            name: intent_outcome(label, None if choice is None else {"box": choice["box"]}, threshold)
+            for name, choice in choices.items()},
     }
 
 
@@ -385,7 +442,7 @@ def make_row(label, input_name, variant, result, matcher, ocr=None, extra=None):
 
 
 def evaluate_label(label, image, recognizer, matcher, detector=None, inputs=("full",), variants=("none",),
-                   threshold=IOU_THRESHOLD):
+                   threshold=IOU_THRESHOLD, methods=None):
     """(rows, image_record) for one label. rows: oracle plus one per input and variant."""
     record = {"id": label_id(label), "image": label["image"], "size": f"{image.shape[1]}x{image.shape[0]}",
               "review_status": review_status(label), "group": label.get("group", "unspecified"),
@@ -397,7 +454,10 @@ def evaluate_label(label, image, recognizer, matcher, detector=None, inputs=("fu
         record["yolo_ms"] = round((time.perf_counter() - started) * 1000, 2)
         record["detections"] = [{"class_name": d["class_name"], "confidence": round(d["confidence"], 4),
                                  "box": list(d["box"])} for d in detections]
-        record["detection"] = score_detection(label, detections, threshold) if tier(label) != "descriptive" else None
+        frame_size = (image.shape[1], image.shape[0])
+        record["selection_choices"] = selection_choices(detections, frame_size, methods)
+        record["detection"] = (score_detection(label, detections, threshold, frame_size=frame_size, methods=methods)
+                               if tier(label) != "descriptive" else None)
 
     rows = []
     if label.get("visible_text"):
@@ -452,7 +512,16 @@ def stale_reason(old_row, label, saved_image_sha):
     return None
 
 
-def replay(previous, labels, matcher, threshold=IOU_THRESHOLD):
+def _parse_size(size):
+    """'WxH' -> (W, H), or None."""
+    try:
+        width, height = (int(v) for v in str(size).split("x"))
+        return width, height
+    except ValueError:
+        return None
+
+
+def replay(previous, labels, matcher, threshold=IOU_THRESHOLD, methods=None):
     """Re-score a saved run with the current matcher and annotations, on its saved OCR
     and detections. OCR and YOLO are not repeated.
 
@@ -502,8 +571,11 @@ def replay(previous, labels, matcher, threshold=IOU_THRESHOLD):
         if changed:
             record["stale"] = "image file changed since the saved run"
             record["detection"] = None                    # detections were made on other pixels
-        elif old.get("detections") is not None and tier(label) != "descriptive":
-            record["detection"] = score_detection(label, old["detections"], threshold)
+        elif old.get("detections") is not None:
+            frame_size = _parse_size(old.get("size"))
+            record["selection_choices"] = selection_choices(old["detections"], frame_size, methods) if frame_size else None
+            record["detection"] = (score_detection(label, old["detections"], threshold, frame_size=frame_size,
+                                                   methods=methods) if tier(label) != "descriptive" else None)
         else:
             record["detection"] = None
         if truth_crop_box(label) and old["id"] not in read_truth_crop:
@@ -640,7 +712,54 @@ def summarize_detection(images, seed=0):
                                     ("MEDICINE_SELECTED", "WRONG_OBJECT_SELECTED", "NO_BOTTLE_DETECTED",
                                      "NON_MEDICINE_SELECTED", "NOTHING_SELECTED")),
         "unmatched_bottle_detections": sum(i["detection"]["unmatched_bottle_detections"] for i in scored),
+        "selection_methods": summarize_selection_methods(scored, seed),
     }
+
+
+SELECTION_OUTCOMES = ("MEDICINE_SELECTED", "WRONG_OBJECT_SELECTED", "NO_BOTTLE_DETECTED",
+                      "NON_MEDICINE_SELECTED", "NOTHING_SELECTED")
+
+
+INTENT_OUTCOMES = ("INTENDED_SELECTED", "UNINTENDED_SELECTED", "NOTHING_SELECTED", "CORRECTLY_NOTHING")
+
+
+def summarize_selection_methods(scored, seed=0):
+    """Per method, on identical detections, two separate questions:
+
+    medicine_*   did it read an annotated MEDICINE box (any medicine, on images with one),
+                 split into several-bottle and single-bottle images, and what it read on
+                 images without a medicine;
+    intended_*   did it read the object the person INTENDED (only images whose reviewers
+                 annotated intent; otherwise not computed).
+    """
+    by_method, intent_by_method = defaultdict(list), defaultdict(list)
+    for image in scored:
+        for name, outcome in (image["detection"].get("selection_by_method") or {}).items():
+            by_method[name].append(dict(image, outcome=outcome))
+        for name, outcome in (image["detection"].get("intent_by_method") or {}).items():
+            intent_by_method[name].append(dict(image, outcome=outcome))
+    out = {}
+    for name, items in sorted(by_method.items()):
+        medicine = lambda i: i["detection"]["medicine_targets"] > 0
+        several = lambda i: medicine(i) and i["detection"]["bottle_targets"] > 1
+        single = lambda i: medicine(i) and i["detection"]["bottle_targets"] == 1
+        right = lambda i: i["outcome"] == "MEDICINE_SELECTED"
+        wrong = lambda i: i["outcome"] == "WRONG_OBJECT_SELECTED"
+        intent = intent_by_method.get(name, [])
+        out[name] = {
+            "medicine_selected": rate(items, right, applies=medicine, seed=seed),
+            "wrong_object_selected": rate(items, wrong, applies=medicine, seed=seed),
+            "medicine_selected_several_bottles": rate(items, right, applies=several, seed=seed),
+            "medicine_selected_single_bottle": rate(items, right, applies=single, seed=seed),
+            "no_medicine_images": _counts([i["outcome"] for i in items if not medicine(i)],
+                                          ("NOTHING_SELECTED", "NON_MEDICINE_SELECTED")),
+            "counts": _counts([i["outcome"] for i in items], SELECTION_OUTCOMES),
+            "intent_annotated_images": len(intent),
+            "intended_target": rate(intent, lambda i: i["outcome"] in ("INTENDED_SELECTED", "CORRECTLY_NOTHING"),
+                                    seed=seed) if intent else None,
+            "intent_counts": _counts([i["outcome"] for i in intent], INTENT_OUTCOMES) if intent else None,
+        }
+    return out
 
 
 def summarize(rows, images, seed=0):
@@ -766,6 +885,13 @@ def print_report(report):
                 print(f"  YOLO bottle recall: {_fmt(d['bottle_recall'])}; medicine recall: {_fmt(d['medicine_recall'])}")
                 print(f"  target selection: {_fmt(d['target_selection'])}; with several bottles: "
                       f"{_fmt(d['target_selection_multiple_bottles'])}; {d['selection_counts']}")
+                for name, m in (d.get("selection_methods") or {}).items():
+                    print(f"    [{name}] medicine selected {_fmt(m['medicine_selected'])}; wrong object "
+                          f"{_fmt(m['wrong_object_selected'])}; several bottles "
+                          f"{_fmt(m['medicine_selected_several_bottles'])}; single bottle "
+                          f"{_fmt(m['medicine_selected_single_bottle'])}; no medicine {m['no_medicine_images']}")
+                    print(f"      intended target: " + (_fmt(m["intended_target"]) if m["intended_target"]
+                                                         else "not annotated (intent is not inferred from medicine boxes)"))
             if section.get("stale_rows_excluded"):
                 print(f"  {section['stale_rows_excluded']} stale rows excluded (OCR from other pixels; re-run them)")
             for name, s in section.items():
@@ -806,6 +932,8 @@ def main(argv=None):
     parser.add_argument("--save", action="store_true", help=f"write the results JSON under {DEFAULT_RESULTS}/")
     parser.add_argument("--out", default=DEFAULT_RESULTS)
     parser.add_argument("--seed", type=int, default=0, help="bootstrap seed")
+    parser.add_argument("--selection-weights", help="also compare custom target-selection weights wc,wa,wp "
+                                                    "(confidence, area, centre; non-negative, sum 1)")
     args = parser.parse_args(argv)
 
     inputs = [i for i in (args.inputs or ("yolo_crop" if args.crop == "yolo" else "full")).split(",") if i]
@@ -816,18 +944,27 @@ def main(argv=None):
 
     from vision.products.catalog import ProductCatalog
     from vision.products.matcher import ProductMatcher
+    from vision.target_selection import METHODS, Weights
+
+    methods = dict(METHODS)
+    if args.selection_weights:
+        try:
+            methods["custom"] = Weights(*(float(v) for v in args.selection_weights.split(",")))
+        except (TypeError, ValueError) as error:
+            parser.error(f"--selection-weights: {error}")
 
     labels = load_labels(args.labels)
     catalog = ProductCatalog.from_file(args.cache)
     matcher = ProductMatcher(catalog)
     settings = {"inputs": inputs, "variants": variants, "yolo_conf": args.yolo_conf, "iou_threshold": args.iou,
                 "bootstrap_seed": args.seed, "bootstrap_resamples": BOOTSTRAP_RESAMPLES,
-                "min_products_for_interval": MIN_PRODUCTS_FOR_INTERVAL}
+                "min_products_for_interval": MIN_PRODUCTS_FOR_INTERVAL,
+                "selection_methods": {name: [w.confidence, w.area, w.center] for name, w in methods.items()}}
 
     if args.replay:
         with open(args.replay) as f:
             previous = json.load(f)
-        rows, images = replay(previous, labels, matcher, args.iou)
+        rows, images = replay(previous, labels, matcher, args.iou, methods)
         for row in rows:
             if row.get("stale"):
                 print(f"stale, not scored: {row['id']} {row['input']} ({row['stale']}); run the evaluation again")
@@ -857,7 +994,8 @@ def main(argv=None):
                                "group": label.get("group", "unspecified"), "review_status": review_status(label)})
                 continue
             print(f"=== {label_id(label)} [{label.get('group', 'unspecified')}, {review_status(label)}]")
-            label_rows, record = evaluate_label(label, image, recognizer, matcher, detector, inputs, variants, args.iou)
+            label_rows, record = evaluate_label(label, image, recognizer, matcher, detector, inputs, variants, args.iou,
+                                                methods)
             record["sha256"] = digest
             rows += label_rows
             images.append(record)
@@ -869,6 +1007,12 @@ def main(argv=None):
                           ocr_used=recognizer is not None)
         data = {"environment": env, "settings": settings, "rows": rows, "images": images}
 
+    for image in images:
+        choices = image.get("selection_choices")
+        if choices:
+            picked = ", ".join(f"{name} #{c['index']}" if c else f"{name} none" for name, c in choices.items())
+            note = "" if len({c and c["index"] for c in choices.values()}) == 1 else "  (methods disagree)"
+            print(f"target selection {image['id']}: {picked}{note}")
     images_present = [i for i in images if not i.get("missing")]
     data["report"] = summarize(rows, images_present, args.seed)
     print_report(data["report"])

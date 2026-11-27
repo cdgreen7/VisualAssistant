@@ -133,6 +133,32 @@ def c_crop(args):
     return {"what": "crop_box of the centre half of the frame (a NumPy view)"}, call
 
 
+# Ten detections in a 1920x1080 frame: six bottles at different places and sizes, four
+# other classes. Synthetic input, used only to time the selection step.
+FIXED_DETECTIONS = [
+    {"class_id": 39 if i % 5 < 3 else 41, "class_name": "bottle" if i % 5 < 3 else "cup",
+     "confidence": round(0.5 + 0.045 * i, 3), "box": (100 + 170 * i, 150 + 40 * (i % 4), 260 + 175 * i, 700 + 30 * i)}
+    for i in range(10)]
+
+
+def _selection(method):
+    def build(args):
+        from vision.identification import select_best_detection
+        from vision.target_selection import select_target
+
+        def call(image, path=None):
+            if method == "baseline":
+                chosen = select_best_detection(FIXED_DETECTIONS)
+            else:
+                chosen = select_target(FIXED_DETECTIONS, (1920, 1080), method).detection
+            return {"chosen_box": list(chosen["box"]) if chosen else None}
+        what = ("identification.select_best_detection (confidence only, as main.py by default)" if method == "baseline"
+                else f"target_selection.select_target, method {method!r}, with full score breakdown")
+        return {"what": what, "input": f"{len(FIXED_DETECTIONS)} fixed synthetic detections (no image used)",
+                "synthetic_input": True}, call
+    return build
+
+
 def c_ocr(args):
     from vision.ocr import TextRecognizer
     recognizer = TextRecognizer()
@@ -182,8 +208,9 @@ def c_barcode_lookup(args):
 COMPONENTS = {
     "decode": c_decode, "yolo": c_yolo, "crop": c_crop, "ocr": c_ocr, "matcher": c_matcher,
     "barcode_decode": c_barcode_decode, "barcode_lookup": c_barcode_lookup,
+    "selection_baseline": _selection("baseline"), "selection_weighted": _selection("weighted"),
 }
-NO_IMAGE = ("matcher", "barcode_lookup")
+NO_IMAGE = ("matcher", "barcode_lookup", "selection_baseline", "selection_weighted")
 RESIZABLE = ("yolo", "ocr", "barcode_decode")
 DEFAULT = list(COMPONENTS)
 

@@ -1,7 +1,6 @@
 # Phase 2: Evaluation baseline
-
 Branch `feature/evaluation-baseline`, branched from the Phase 1 commit `dffc40d`.
-In review; not yet committed. Production code (`main.py`, OCR, YOLO, matcher,
+Committed as `d86243f`; pull request #4 (open). Production code (`main.py`, OCR, YOLO, matcher,
 barcode lookup, identification, TTS) is unchanged from Phase 1.
 
 ## 1. Objective

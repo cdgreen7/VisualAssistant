@@ -51,10 +51,10 @@ from vision.products.ndc import normalize_package_ndc
 DEFAULT_LABELS = os.path.join("research", "datasets", "photos-v1", "labels.json")
 BOX_AGREEMENT_IOU = 0.8
 TRUTH_FIELDS = ("physical_product_id", "negative", "readable", "product", "brand_words", "ingredients",
-                "formulation", "package_ndc", "upc", "visible_text", "target_boxes")
+                "formulation", "package_ndc", "upc", "visible_text", "target_boxes", "intended_target")
 EMPTY_TRUTH = {"physical_product_id": None, "negative": None, "readable": None, "product": None, "brand_words": [],
                "ingredients": [], "formulation": [], "package_ndc": None, "upc": None, "visible_text": [],
-               "target_boxes": None}
+               "target_boxes": None, "intended_target": None}
 COMPARED = ("negative", "readable", "brand_words", "formulation", "package_ndc", "upc", "visible_text")
 
 
@@ -160,7 +160,46 @@ def build_annotation(answers, boxes, image_sha256, today=None):
         "upc": upc,
         "visible_text": [line.strip() for line in answers.get("visible_text", []) if line.strip()],
         "target_boxes": boxes,
+        "intended_target": _intended(answers.get("intended_target"), boxes),
     }
+
+
+def _intended(value, boxes):
+    """The user's intended target: None (not annotated), "none" (nothing should be read)
+    or an index into boxes. Separate from the medicine box on purpose."""
+    if value is None or value == "":
+        return None
+    if value == "none":
+        return "none"
+    if boxes is None or isinstance(value, bool) or not isinstance(value, int) or not 0 <= value < len(boxes):
+        raise ValueError(f"intended target must be a drawn box number, 'none' or empty, not {value!r}")
+    return value
+
+
+def _intent_key(annotation):
+    """("none",), (role, box) or None, for comparing intent across reviewers' own box lists."""
+    intended = annotation.get("intended_target")
+    if intended is None or intended == "none":
+        return intended
+    box = annotation["target_boxes"][intended]
+    return box["role"], box["box"]
+
+
+def intents_agree(a, b, threshold=BOX_AGREEMENT_IOU):
+    first, second = _intent_key(a), _intent_key(b)
+    if first is None or second is None or first == "none" or second == "none":
+        return first == second
+    return first[0] == second[0] and iou(first[1], second[1]) >= threshold
+
+
+def merged_intent(first, merged_boxes):
+    """Index of the first reviewer's intended box in the merged boxes (same role, best overlap)."""
+    key = _intent_key(first)
+    if key is None or key == "none":
+        return key
+    role, box = key
+    options = [(iou(b["box"], box), i) for i, b in enumerate(merged_boxes) if b["role"] == role]
+    return max(options)[1]
 
 
 def catalog_has_formulation(catalog, ingredients):
@@ -255,6 +294,8 @@ def reconcile(labels, reviews):
                        if any(_normalized(a, field) != _normalized(first, field) for _, a in found[1:])]
         if any(not boxes_agree(first["target_boxes"], a["target_boxes"]) for _, a in found[1:]):
             differences.append("target_boxes")
+        elif any(not intents_agree(first, a) for _, a in found[1:]):
+            differences.append("intended_target")
         if len(found) > 1 and image_id in grouping:
             differences.append("physical_product_id grouping")
         names = [r for r, _ in found]
@@ -273,6 +314,8 @@ def reconcile(labels, reviews):
             "package_ndc": first["package_ndc"], "upc": first["upc"], "visible_text": first["visible_text"],
             "target_boxes": merge_boxes([a for _, a in found]),
         })
+        current["intended_target"] = (None if current["target_boxes"] is None
+                                      else merged_intent(first, current["target_boxes"]))
         current["review"] = {"status": "REVIEWED" if len(found) > 1 else "SINGLE_REVIEWED", "reviewers": names,
                              "date": max(a["date"] for _, a in found), "confirmation_sources": sources}
         out.append(current)
@@ -317,6 +360,21 @@ def draw_boxes(image, title):
     return boxes
 
 
+def ask_intended(ask, boxes):
+    """The object the person meant the system to read. Recorded separately from the
+    medicine box: a photo can show two medicines, or the user can mean something else.
+    Empty = not known (then intent is simply not evaluated for this photo)."""
+    for i, box in enumerate(boxes):
+        print(f"  box {i}: {box['role']} {box['box']}")
+    while True:
+        answer = ask("Which box did the person intend the system to read? Box number, 'none' if nothing, "
+                     "empty if you don't know: ").strip().lower()
+        if answer in ("", "none"):
+            return answer or None
+        if answer.isdigit() and int(answer) < len(boxes):
+            return int(answer)
+
+
 def interview(ask, negative_hint=None):
     """Answers dict from the terminal."""
     print("Answer from the physical package where you can; otherwise from the photo. Don't look at anyone "
@@ -357,6 +415,7 @@ def annotate(labels_path, image_id, reviewer, replace=False, with_boxes=True, as
                                                 drawer(image, "Draw the MEDICINE package (one box)")]
         boxes += [{"role": "other_bottle", "box": b} for b in
                   drawer(image, "Draw every OTHER bottle (not the medicine)")]
+        answers["intended_target"] = ask_intended(ask, boxes)
     annotation = build_annotation(answers, boxes, digest)
     if catalog is not None and annotation["ingredients"] and not catalog_has_formulation(catalog, annotation["ingredients"]):
         print("note: no catalog record has exactly these ingredients and strengths. Check the salt names "
