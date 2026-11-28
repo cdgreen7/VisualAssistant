@@ -43,15 +43,17 @@ def camera_frame():
 
 
 class FakeCamera:
-    def __init__(self):
-        self.frames = 0
+    """reads: True/False per read in order; after the list runs out, reads fail."""
+    def __init__(self, reads=(True,) * 5):
+        self.reads, self.attempts, self.released = list(reads), 0, 0
 
     def read(self):
-        self.frames += 1
-        return (True, camera_frame()) if self.frames <= 5 else (False, None)
+        self.attempts += 1
+        ok = self.reads.pop(0) if self.reads else False
+        return (True, camera_frame()) if ok else (False, None)
 
     def release(self):
-        pass
+        self.released += 1
 
 
 class FakeResult:
@@ -64,8 +66,10 @@ class FakeResult:
 
 class Run:
     """One run of main.py with the given environment; records everything."""
-    def __init__(self, env):
+    def __init__(self, env, camera=None, keys=("i", "q"), open_error=None):
         self.env, self.ocr_inputs, self.detector_args, self.camera_opened = env, [], [], False
+        self.camera, self.keys, self.open_error, self.at_exit = camera or FakeCamera(), keys, open_error, []
+        self.frames_shown = 0
         self.output = io.StringIO()
 
     def go(self):
@@ -90,12 +94,17 @@ class Run:
                 return [{"text": "Advil", "confidence": 0.9}, {"text": "Ibuprofen 200 mg", "confidence": 0.9}]
 
         def open_camera(*args, **kwargs):
+            if run.open_error:
+                raise vision.camera.CameraError(run.open_error)
             run.camera_opened = True
-            return FakeCamera()
+            return run.camera
+
+        def show(*args):
+            run.frames_shown += 1
 
         with open(FIXTURE) as f:
             catalog = ProductCatalog.from_openfda_results(json.load(f)["results"])
-        keys = iter([ord("i"), ord("q")])
+        keys = iter([ord(k) for k in self.keys])
         real_exists = os.path.exists
         with contextlib.ExitStack() as stack:
             stack.enter_context(mock.patch.dict(os.environ, self.env, clear=False))
@@ -106,8 +115,10 @@ class Run:
             stack.enter_context(mock.patch.object(vision.ocr, "TextRecognizer", FakeRecognizer))
             stack.enter_context(mock.patch.object(ProductCatalog, "from_file", classmethod(lambda cls, path: catalog)))
             stack.enter_context(mock.patch("os.path.exists", lambda p: p == FDA_CACHE or real_exists(p)))
-            stack.enter_context(mock.patch.object(cv2, "imshow", lambda *a: None))
-            stack.enter_context(mock.patch.object(cv2, "waitKey", lambda *a: next(keys)))
+            stack.enter_context(mock.patch.object(cv2, "imshow", show))
+            stack.enter_context(mock.patch.object(cv2, "waitKey", lambda *a: next(keys, -1)))   # then: no key
+            stack.enter_context(mock.patch("atexit.register", lambda f, *a, **k: run.at_exit.append(f)))
+            stack.enter_context(mock.patch.object(vision.camera, "READ_RETRY_INTERVAL_S", 0))
             stack.enter_context(mock.patch.object(cv2, "destroyAllWindows", lambda *a: None))
             stack.enter_context(contextlib.redirect_stdout(self.output))
             runpy.run_path(MAIN, run_name="__main__")
@@ -150,6 +161,39 @@ class MainIntegrationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             run.go()
         self.assertFalse(run.camera_opened)
+
+
+class CameraReliabilityTests(unittest.TestCase):
+    def test_camera_number_is_reported_and_released_on_exit(self):
+        run = Run({}).go()
+        self.assertIn("Using camera 0.", run.output.getvalue())
+        self.assertEqual(run.camera.released, 1)                            # the existing release at the end
+        self.assertEqual([f.__self__ for f in run.at_exit], [run.camera])   # also registered for errors / Ctrl+C
+        self.assertIn("Using camera 1.", Run({"VA_CAMERA_INDEX": "1"}).go().output.getvalue())
+
+    def test_open_failure_exits_with_the_reason_before_loading_models(self):
+        run = Run({}, open_error="Couldn't open camera 0. On macOS, allow camera access ...")
+        with self.assertRaises(SystemExit) as caught:
+            run.go()
+        self.assertEqual(str(caught.exception.code), "Camera error: Couldn't open camera 0. On macOS, allow camera access ...")
+        self.assertEqual(run.detector_args, [])                             # nothing else was started
+        self.assertEqual(run.at_exit, [])
+
+    def test_a_brief_dropout_does_not_stop_the_app(self):
+        camera = FakeCamera([True, False, False, False, True, True])
+        run = Run({}, camera=camera, keys=("x", "x", "q")).go()
+        self.assertEqual(run.frames_shown, 3)
+        self.assertNotIn("Camera error", run.output.getvalue())
+        self.assertEqual(camera.released, 1)
+
+    def test_a_camera_that_stops_is_reported_and_released(self):
+        camera = FakeCamera([True, True])
+        run = Run({}, camera=camera, keys=()).go()                          # no key pressed: runs until the camera stops
+        text = run.output.getvalue()
+        self.assertEqual(run.frames_shown, 2)
+        self.assertIn("Camera error: The camera stopped delivering frames (21 failed reads in a row)", text)
+        self.assertEqual(camera.attempts, 2 + 21)                           # bounded: MAX_FAILED_READS + 1 tries
+        self.assertEqual(camera.released, 1)
 
 
 class DetectionThresholdTests(unittest.TestCase):

@@ -1,7 +1,9 @@
+import atexit
 import os
+import sys
 import cv2
 import time
-from vision.camera import open_camera
+from vision.camera import CameraError, camera_index, open_camera, read_frame
 from vision.detector import ObjectDetector
 from vision.spatial import get_horizontal_position
 from vision.barcode_scan import format_scan, scan_frame
@@ -18,7 +20,13 @@ FDA_CACHE = "vision/products/data/otc_ndc_2026-10-30.json"
 TARGET_SELECTION = os.environ.get("VA_TARGET_SELECTION", BASELINE)
 selector = None if TARGET_SELECTION == BASELINE else make_selector(TARGET_SELECTION)
 
-camera = open_camera()
+# Camera number: VA_CAMERA_INDEX (default 0). See README, "Camera selection and permissions".
+try:
+    camera = open_camera()
+except CameraError as error:
+    sys.exit(f"Camera error: {error}")
+atexit.register(camera.release)  # also released on errors and Ctrl+C
+print(f"Using camera {camera_index()}.")
 detector = ObjectDetector()
 
 # Expensive objects are created once; OCR only runs when "i" is pressed
@@ -67,8 +75,10 @@ def run_barcode_scan(frame):
 previous_time = time.time()
 
 while True:
-    success, frame = camera.read()
-    if not success:
+    try:
+        frame = read_frame(camera)  # retries briefly before giving up
+    except CameraError as error:
+        print(f"Camera error: {error}")
         break
     result = detector.detect(frame)
     detections = detector.get_detections(result)
