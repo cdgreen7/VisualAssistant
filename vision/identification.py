@@ -37,14 +37,20 @@ def crop_box(frame, box):
     return frame[y1:y2, x1:x2]
 
 
-def identify_detection(frame, detections, recognizer, matcher, class_name=TARGET_CLASS):
+def identify_detection(frame, detections, recognizer, matcher, class_name=TARGET_CLASS, selector=None):
     """Run OCR + matching on the best detection of class_name.
 
     frame must be the clean camera frame (no boxes or FPS text drawn on it).
+    selector: optional function (detections, (width, height)) -> detection or
+    None that chooses the target (see vision/target_selection.py). Without it,
+    the highest-confidence detection is used, as before.
     Returns (detection, ocr_results, match_result), or None if there is no
     such detection or its box is empty.
     """
-    detection = select_best_detection(detections, class_name)
+    if selector is None:
+        detection = select_best_detection(detections, class_name)
+    else:
+        detection = selector(detections, (frame.shape[1], frame.shape[0]))
     if detection is None:
         return None
     crop = crop_box(frame, detection["box"])
