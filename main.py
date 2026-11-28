@@ -1,7 +1,9 @@
+import atexit
 import os
+import sys
 import cv2
 import time
-from vision.camera import open_camera
+from vision.camera import CameraError, camera_index, open_camera, read_frame
 from vision.detector import ObjectDetector
 from vision.spatial import get_horizontal_position
 from vision.barcode_scan import format_scan, scan_frame
@@ -9,10 +11,22 @@ from vision.identification import identify_detection, format_identification
 from vision.ocr import TextRecognizer
 from vision.products.catalog import ProductCatalog
 from vision.products.matcher import ProductMatcher
+from vision.target_selection import BASELINE, describe, make_selector, select_target
 
 FDA_CACHE = "vision/products/data/otc_ndc_2026-10-30.json"
 
-camera = open_camera()
+# Which bottle "i" reads. Default: the highest-confidence bottle, as before. Experimental, opt-in:
+# VA_TARGET_SELECTION=weighted (or center, area, confidence_validated) python main.py  (docs/phase-03-target-selection)
+TARGET_SELECTION = os.environ.get("VA_TARGET_SELECTION", BASELINE)
+selector = None if TARGET_SELECTION == BASELINE else make_selector(TARGET_SELECTION)
+
+# Camera number: VA_CAMERA_INDEX (default 0). See README, "Camera selection and permissions".
+try:
+    camera = open_camera()
+except CameraError as error:
+    sys.exit(f"Camera error: {error}")
+atexit.register(camera.release)  # also released on errors and Ctrl+C
+print(f"Using camera {camera_index()}.")
 detector = ObjectDetector()
 
 # Expensive objects are created once; OCR only runs when "i" is pressed
@@ -34,7 +48,9 @@ def run_identification(frame, detections):
         print("Identification unavailable: FDA cache not loaded.")
         return
     try:
-        identified = identify_detection(frame, detections, recognizer, matcher)
+        if selector is not None:
+            print(describe(select_target(detections, (frame.shape[1], frame.shape[0]), TARGET_SELECTION)))
+        identified = identify_detection(frame, detections, recognizer, matcher, selector=selector)
     except Exception as error:  # keep the camera loop running
         print(f"Identification failed: {error}")
         return
@@ -59,8 +75,10 @@ def run_barcode_scan(frame):
 previous_time = time.time()
 
 while True:
-    success, frame = camera.read()
-    if not success:
+    try:
+        frame = read_frame(camera)  # retries briefly before giving up
+    except CameraError as error:
+        print(f"Camera error: {error}")
         break
     result = detector.detect(frame)
     detections = detector.get_detections(result)

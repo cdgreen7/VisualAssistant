@@ -1,0 +1,212 @@
+[
+  {
+    "id": "photo-IMG_9764",
+    "image": "VA-photos/converted/IMG_9764.jpg",
+    "sha256": "70989823d734788eee002fb7377c235c68a56ccaab916f9942e73f1ce4661ba8",
+    "group": "photo",
+    "source": {
+      "original": "VA-photos/IMG_9764.HEIC",
+      "original_sha256": "d999f6994a79a6904821e8c13ae4ff0179b2f310c91ec8615bfccc72339866cd",
+      "exif_device": "Apple iPhone 17e",
+      "exif_capture_time": "2026:11:12 13:41:59",
+      "exif_orientation": 1,
+      "size_as_loaded": "4284x5712"
+    },
+    "prepared_by": "assistant: file metadata only (hashes, EXIF); every truth field is empty until people review it",
+    "review": {
+      "status": "UNREVIEWED"
+    },
+    "physical_product_id": null,
+    "negative": null,
+    "readable": null,
+    "product": null,
+    "brand_words": [],
+    "ingredients": [],
+    "formulation": [],
+    "package_ndc": null,
+    "upc": null,
+    "visible_text": [],
+    "target_boxes": null,
+    "notes": "JPEG copy of the HEIC original (converter not recorded). Model predictions for this photo exist in research/datasets/medicine-v1/drafts.json; they are not annotations."
+  },
+  {
+    "id": "photo-IMG_9765",
+    "image": "VA-photos/converted/IMG_9765.jpg",
+    "sha256": "f18eeea40d591de30cbd99e468301f0b39f9d2dcf66c2d33f88cc3d8a2464b86",
+    "group": "photo",
+    "source": {
+      "original": "VA-photos/IMG_9765.HEIC",
+      "original_sha256": "0e5453d51ea38c81e77bcafea078c40b4fa71c1773310d86a93a8173237b5bcb",
+      "exif_device": "Apple iPhone 17e",
+      "exif_capture_time": "2026:11:12 13:42:02",
+      "exif_orientation": 6,
+      "size_as_loaded": "4284x5712"
+    },
+    "prepared_by": "assistant: file metadata only (hashes, EXIF); every truth field is empty until people review it",
+    "review": {
+      "status": "UNREVIEWED"
+    },
+    "physical_product_id": null,
+    "negative": null,
+    "readable": null,
+    "product": null,
+    "brand_words": [],
+    "ingredients": [],
+    "formulation": [],
+    "package_ndc": null,
+    "upc": null,
+    "visible_text": [],
+    "target_boxes": null,
+    "notes": "JPEG copy of the HEIC original (converter not recorded). Model predictions for this photo exist in research/datasets/medicine-v1/drafts.json; they are not annotations."
+  },
+  {
+    "id": "photo-IMG_9766",
+    "image": "VA-photos/converted/IMG_9766.jpg",
+    "sha256": "0c16e79e246d93a191ae17fc88a93aee0e1a7a817e29fec57b469b81f877f091",
+    "group": "photo",
+    "source": {
+      "original": "VA-photos/IMG_9766.HEIC",
+      "original_sha256": "e2933d611d5eadc9e938fb2af1093fdbbccd3a4b248c2d2f171e077d51610026",
+      "exif_device": "Apple iPhone 17e",
+      "exif_capture_time": "2026:11:12 13:42:24",
+      "exif_orientation": 6,
+      "size_as_loaded": "4284x5712"
+    },
+    "prepared_by": "assistant: file metadata only (hashes, EXIF); every truth field is empty until people review it",
+    "review": {
+      "status": "UNREVIEWED"
+    },
+    "physical_product_id": null,
+    "negative": null,
+    "readable": null,
+    "product": null,
+    "brand_words": [],
+    "ingredients": [],
+    "formulation": [],
+    "package_ndc": null,
+    "upc": null,
+    "visible_text": [],
+    "target_boxes": null,
+    "notes": "JPEG copy of the HEIC original (converter not recorded). Model predictions for this photo exist in research/datasets/medicine-v1/drafts.json; they are not annotations."
+  },
+  {
+    "id": "photo-IMG_9767",
+    "image": "VA-photos/converted/IMG_9767.jpg",
+    "sha256": "b71804ce72947a2d0eeabe08195a39fbf7c48a0b96de8aa79a3ff4509531a420",
+    "group": "photo",
+    "source": {
+      "original": "VA-photos/IMG_9767.HEIC",
+      "original_sha256": "bac966c673b6c104c4aef6cc29b5999d6b3856294d5762ec821625dce681b731",
+      "exif_device": "Apple iPhone 17e",
+      "exif_capture_time": "2026:11:12 13:42:27",
+      "exif_orientation": 6,
+      "size_as_loaded": "4284x5712"
+    },
+    "prepared_by": "assistant: file metadata only (hashes, EXIF); every truth field is empty until people review it",
+    "review": {
+      "status": "UNREVIEWED"
+    },
+    "physical_product_id": null,
+    "negative": null,
+    "readable": null,
+    "product": null,
+    "brand_words": [],
+    "ingredients": [],
+    "formulation": [],
+    "package_ndc": null,
+    "upc": null,
+    "visible_text": [],
+    "target_boxes": null,
+    "notes": "JPEG copy of the HEIC original (converter not recorded). Model predictions for this photo exist in research/datasets/medicine-v1/drafts.json; they are not annotations."
+  },
+  {
+    "id": "photo-IMG_9768",
+    "image": "VA-photos/converted/IMG_9768.jpg",
+    "sha256": "8f2388b4cf26b647845d600ef72c46d08da359330b5b786f10320e4b4fb84973",
+    "group": "photo",
+    "source": {
+      "original": "VA-photos/IMG_9768.HEIC",
+      "original_sha256": "649417112004e9a2690a046614e2407afb87ea98fb5a80296902c8ccff5f78f4",
+      "exif_device": "Apple iPhone 17e",
+      "exif_capture_time": "2026:11:12 13:42:30",
+      "exif_orientation": 6,
+      "size_as_loaded": "4284x5712"
+    },
+    "prepared_by": "assistant: file metadata only (hashes, EXIF); every truth field is empty until people review it",
+    "review": {
+      "status": "UNREVIEWED"
+    },
+    "physical_product_id": null,
+    "negative": null,
+    "readable": null,
+    "product": null,
+    "brand_words": [],
+    "ingredients": [],
+    "formulation": [],
+    "package_ndc": null,
+    "upc": null,
+    "visible_text": [],
+    "target_boxes": null,
+    "notes": "JPEG copy of the HEIC original (converter not recorded). Model predictions for this photo exist in research/datasets/medicine-v1/drafts.json; they are not annotations."
+  },
+  {
+    "id": "photo-IMG_9769",
+    "image": "VA-photos/converted/IMG_9769.jpg",
+    "sha256": "a27acb1f45ebaa40d42e2ce25fb0321acca2066c00c262e459eab258232c5443",
+    "group": "photo",
+    "source": {
+      "original": "VA-photos/IMG_9769.HEIC",
+      "original_sha256": "7dd78dfa34e88c8ac880669d2d719b21014a4fd18c9d115f8ccf16a808c992ec",
+      "exif_device": "Apple iPhone 17e",
+      "exif_capture_time": "2026:11:12 13:42:33",
+      "exif_orientation": 6,
+      "size_as_loaded": "4284x5712"
+    },
+    "prepared_by": "assistant: file metadata only (hashes, EXIF); every truth field is empty until people review it",
+    "review": {
+      "status": "UNREVIEWED"
+    },
+    "physical_product_id": null,
+    "negative": null,
+    "readable": null,
+    "product": null,
+    "brand_words": [],
+    "ingredients": [],
+    "formulation": [],
+    "package_ndc": null,
+    "upc": null,
+    "visible_text": [],
+    "target_boxes": null,
+    "notes": "JPEG copy of the HEIC original (converter not recorded). Model predictions for this photo exist in research/datasets/medicine-v1/drafts.json; they are not annotations."
+  },
+  {
+    "id": "photo-advil_front",
+    "image": "vision/advil_front.jpg",
+    "sha256": "4694bbb20bcf83e9bfb1c47c106f8096656bfc200602c000c83ee572b3eaf713",
+    "group": "photo",
+    "source": {
+      "original": "vision/advil_front.jpg",
+      "original_sha256": null,
+      "exif_device": null,
+      "exif_capture_time": null,
+      "exif_orientation": null,
+      "size_as_loaded": "1920x1080"
+    },
+    "prepared_by": "assistant: file metadata only (hashes, EXIF); every truth field is empty until people review it",
+    "review": {
+      "status": "UNREVIEWED"
+    },
+    "physical_product_id": null,
+    "negative": null,
+    "readable": null,
+    "product": null,
+    "brand_words": [],
+    "ingredients": [],
+    "formulation": [],
+    "package_ndc": null,
+    "upc": null,
+    "visible_text": [],
+    "target_boxes": null,
+    "notes": "No EXIF. evaluation/labels.json has an older annotation of this image whose author is unrecorded; it was not copied here. The photo shows part of a person."
+  }
+]
